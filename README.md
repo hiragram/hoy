@@ -61,6 +61,22 @@ swift test
 
 The binary is produced at `.build/debug/hoy` (or `.build/release/hoy` with `swift build -c release`).
 
+### Or run via swx (no clone needed)
+
+[swx](https://github.com/hiragram/swx) is npx for Swift packages. With it you can run any version of `hoy` straight from GitHub:
+
+```sh
+# Install swx once
+curl -fsSL https://raw.githubusercontent.com/hiragram/swx/main/install.sh | bash
+
+# Run hoy
+swx hiragram/hoy -- --version
+swx hiragram/hoy -- daemon start --root ~/.hoy/hoy-dev
+swx hiragram/hoy -- status --root ~/.hoy/hoy-dev --watch
+```
+
+The first invocation builds the package (~30s); subsequent runs use the cached binary at `~/.swx/cache/hiragram/hoy/main/`.
+
 ## Quick start
 
 ```sh
