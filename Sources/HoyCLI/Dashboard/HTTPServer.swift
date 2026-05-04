@@ -25,13 +25,14 @@ public struct HTTPRequest {
     public let headers: [String: String]
 }
 
-public struct HTTPResponse {
-    public let status: Int
-    public let headers: [String: String]
-    public let body: Data
+public enum HTTPResponse {
+    case full(status: Int, headers: [String: String], body: Data)
+    /// 長寿命接続。ヘッダ送出後、`onConnect` で writer を渡して任意に書き込ませる。
+    /// `Content-Length` は付かない (writer が close すると connection close)。
+    case streaming(headers: [String: String], onConnect: @Sendable (StreamWriter) -> Void)
 
     public static func ok(_ body: Data, contentType: String) -> HTTPResponse {
-        return HTTPResponse(
+        return .full(
             status: 200,
             headers: ["Content-Type": contentType, "Cache-Control": "no-store"],
             body: body
@@ -39,11 +40,52 @@ public struct HTTPResponse {
     }
 
     public static func notFound() -> HTTPResponse {
-        return HTTPResponse(
+        return .full(
             status: 404,
             headers: ["Content-Type": "text/plain; charset=utf-8"],
             body: Data("not found".utf8)
         )
+    }
+}
+
+/// SSE などの streaming レスポンスから fd に書き出す。スレッドセーフ。
+public final class StreamWriter: @unchecked Sendable {
+    let fd: Int32
+    private let lock = NSLock()
+    private var closed = false
+    private var onCloseCallbacks: [@Sendable () -> Void] = []
+
+    init(fd: Int32) { self.fd = fd }
+
+    public func send(_ data: Data) {
+        lock.lock(); defer { lock.unlock() }
+        if closed { return }
+        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            _ = Darwin.write(fd, raw.baseAddress, data.count)
+        }
+    }
+
+    public func send(_ string: String) {
+        send(Data(string.utf8))
+    }
+
+    public func onClose(_ callback: @escaping @Sendable () -> Void) {
+        lock.lock(); defer { lock.unlock() }
+        if closed {
+            callback()
+        } else {
+            onCloseCallbacks.append(callback)
+        }
+    }
+
+    func markClosed() {
+        lock.lock()
+        guard !closed else { lock.unlock(); return }
+        closed = true
+        let cbs = onCloseCallbacks
+        onCloseCallbacks.removeAll()
+        lock.unlock()
+        for cb in cbs { cb() }
     }
 }
 
@@ -122,7 +164,8 @@ public final class HTTPServer: @unchecked Sendable {
     }
 
     private func handleClient(fd: Int32, handler: @escaping Handler) {
-        defer { close(fd) }
+        var shouldClose = true
+        defer { if shouldClose { close(fd) } }
 
         // リクエスト全体を 1 度に読み込む (header の終端 \r\n\r\n まで)
         var buffer = Data()
@@ -132,14 +175,41 @@ public final class HTTPServer: @unchecked Sendable {
             if n <= 0 { return }
             buffer.append(chunk, count: n)
             if let _ = buffer.range(of: Data("\r\n\r\n".utf8)) { break }
-            if buffer.count > 64 * 1024 { return }  // 巨大リクエストは捨てる
+            if buffer.count > 64 * 1024 { return }
         }
 
         guard let request = Self.parseRequest(buffer) else { return }
         let response = handler(request)
-        let raw = Self.encodeResponse(response)
-        raw.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
-            _ = Darwin.write(fd, ptr.baseAddress, raw.count)
+
+        switch response {
+        case .full(let status, let headers, let body):
+            let raw = Self.encodeFullResponse(status: status, headers: headers, body: body)
+            raw.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
+                _ = Darwin.write(fd, ptr.baseAddress, raw.count)
+            }
+        case .streaming(let headers, let onConnect):
+            let head = Self.encodeStreamingHeaders(headers: headers)
+            head.withUnsafeBytes { (ptr: UnsafeRawBufferPointer) in
+                _ = Darwin.write(fd, ptr.baseAddress, head.count)
+            }
+            shouldClose = false
+            // streaming: 別スレッドで writer を渡し、別スレッドで EOF 監視
+            let writer = StreamWriter(fd: fd)
+            let monitor = Thread { [weak self] in
+                _ = self
+                // クライアント切断を検出するため read で待つ
+                var b: UInt8 = 0
+                while read(fd, &b, 1) > 0 { /* discard */ }
+                writer.markClosed()
+                close(fd)
+            }
+            monitor.name = "hoy-http-monitor-\(fd)"
+            monitor.start()
+            let producer = Thread {
+                onConnect(writer)
+            }
+            producer.name = "hoy-http-stream-\(fd)"
+            producer.start()
         }
     }
 
@@ -163,19 +233,26 @@ public final class HTTPServer: @unchecked Sendable {
         return HTTPRequest(method: method, path: path, headers: headers)
     }
 
-    private static func encodeResponse(_ resp: HTTPResponse) -> Data {
-        let statusText = httpStatusText(resp.status)
-        var head = "HTTP/1.1 \(resp.status) \(statusText)\r\n"
-        var headers = resp.headers
-        headers["Content-Length"] = String(resp.body.count)
-        headers["Connection"] = "close"
-        for (k, v) in headers {
-            head += "\(k): \(v)\r\n"
-        }
+    private static func encodeFullResponse(status: Int, headers: [String: String], body: Data) -> Data {
+        let statusText = httpStatusText(status)
+        var head = "HTTP/1.1 \(status) \(statusText)\r\n"
+        var hdrs = headers
+        hdrs["Content-Length"] = String(body.count)
+        hdrs["Connection"] = "close"
+        for (k, v) in hdrs { head += "\(k): \(v)\r\n" }
         head += "\r\n"
         var out = Data(head.utf8)
-        out.append(resp.body)
+        out.append(body)
         return out
+    }
+
+    private static func encodeStreamingHeaders(headers: [String: String]) -> Data {
+        var head = "HTTP/1.1 200 OK\r\n"
+        var hdrs = headers
+        hdrs["Connection"] = "keep-alive"
+        for (k, v) in hdrs { head += "\(k): \(v)\r\n" }
+        head += "\r\n"
+        return Data(head.utf8)
     }
 
     private static func httpStatusText(_ code: Int) -> String {

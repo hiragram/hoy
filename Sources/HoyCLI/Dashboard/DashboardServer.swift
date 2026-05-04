@@ -23,10 +23,33 @@ public final class DashboardServer: @unchecked Sendable {
             case ("GET", "/api/state"):
                 let json = (try? Self.buildState(rpc: rpc, rootPath: rootPath)) ?? Data("{}".utf8)
                 return HTTPResponse.ok(json, contentType: "application/json")
+            case ("GET", "/api/events"):
+                return .streaming(
+                    headers: [
+                        "Content-Type": "text/event-stream",
+                        "Cache-Control": "no-store"
+                    ],
+                    onConnect: { writer in
+                        Self.streamEvents(writer: writer, rpc: rpc)
+                    }
+                )
             default:
                 return HTTPResponse.notFound()
             }
         }
+    }
+
+    /// daemon の events.subscribe に繋ぎ、受信した notification を SSE フレーム
+    /// (`data: <json>\n\n`) として writer に流す。クライアント切断で終了。
+    private static func streamEvents(writer: StreamWriter, rpc: RPCClient) {
+        // ping を送って接続確認
+        writer.send(": connected\n\n")
+        try? rpc.subscribe(methods: nil) { line in
+            guard let str = String(data: line, encoding: .utf8) else { return true }
+            writer.send("data: \(str)\n\n")
+            return true
+        }
+        writer.markClosed()
     }
 
     public func stop() {

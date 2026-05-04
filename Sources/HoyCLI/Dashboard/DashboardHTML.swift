@@ -1,4 +1,4 @@
-// 単一ページの埋め込み HTML。fetch + 2秒ポーリングでシンプルに描画する。
+// 単一ページの埋め込み HTML。SSE で events を受信し、状態は /api/state を fetch。
 enum DashboardHTML {
     static let page = #"""
 <!doctype html>
@@ -19,7 +19,9 @@ enum DashboardHTML {
            display: flex; align-items: baseline; gap: 16px; }
   header h1 { margin: 0; font-size: 16px; font-weight: 600; }
   header .meta { color: var(--muted); font-size: 12px; }
-  .container { max-width: 1100px; margin: 0 auto; padding: 16px 20px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 16px 20px;
+               display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
+  .left { min-width: 0; }
   section { margin-bottom: 24px; }
   section h2 { font-size: 12px; font-weight: 600; color: var(--muted);
                text-transform: uppercase; letter-spacing: .08em;
@@ -32,7 +34,9 @@ enum DashboardHTML {
   .claim .target { color: var(--muted); margin-left: 6px; }
   .claim .ttl { color: var(--muted); float: right; font-size: 12px; }
   .intent { padding: 6px 10px; margin: 4px 0; border-left: 3px solid var(--line);
-            background: var(--card); border-radius: 3px; }
+            background: var(--card); border-radius: 3px;
+            transition: background 0.6s; }
+  .intent.flash { background: rgba(122, 166, 255, 0.15); }
   .intent.closed { opacity: 0.5; }
   .intent.claimed { border-left-color: var(--accent); }
   .intent .head { display: flex; align-items: center; gap: 8px; }
@@ -54,11 +58,28 @@ enum DashboardHTML {
     color: var(--muted); background: rgba(138, 143, 157, 0.1); }
   .tasks .item { padding: 2px 0; }
   .tasks .item .tid { color: var(--muted); font-size: 11px; }
+  .events { background: var(--card); border-radius: 4px; padding: 8px;
+            max-height: 70vh; overflow-y: auto; }
+  .event { padding: 6px 4px; border-bottom: 1px solid var(--line);
+           font-size: 12px; }
+  .event:last-child { border-bottom: none; }
+  .event .when { color: var(--muted); margin-right: 6px; }
+  .event .name { font-weight: 600; margin-right: 6px; }
+  .event .name.task-completed { color: var(--good); }
+  .event .name.task-reverted { color: var(--warn); }
+  .event .name.conflict-detected { color: var(--bad); }
+  .event .name.claim-expired { color: var(--muted); }
+  .event .name.verification-invalidated { color: var(--warn); }
+  .event .body { color: var(--fg); white-space: pre-wrap; word-break: break-all;
+                 font-size: 11px; opacity: 0.7; }
   footer { padding: 12px 20px; border-top: 1px solid var(--line);
            color: var(--muted); font-size: 12px; }
   .bad { color: var(--bad); }
   #status { color: var(--good); }
   #status.disconnected { color: var(--bad); }
+  @media (max-width: 800px) {
+    .container { grid-template-columns: 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -66,26 +87,39 @@ enum DashboardHTML {
   <h1>hoy dashboard</h1>
   <span class="meta" id="ts">—</span>
   <span class="meta" id="status">connecting…</span>
+  <span class="meta" id="event-status">events: —</span>
 </header>
 <div class="container">
-  <section>
-    <h2>active claims</h2>
-    <div id="claims" class="empty">—</div>
-  </section>
-  <section>
-    <h2>intents</h2>
-    <div id="intents" class="empty">—</div>
-  </section>
+  <div class="left">
+    <section>
+      <h2>active claims</h2>
+      <div id="claims" class="empty">—</div>
+    </section>
+    <section>
+      <h2>intents</h2>
+      <div id="intents" class="empty">—</div>
+    </section>
+  </div>
+  <div class="right">
+    <section>
+      <h2>events <span style="color:var(--muted);font-weight:normal">(live)</span></h2>
+      <div id="events" class="events"><div class="empty">no events yet</div></div>
+    </section>
+  </div>
 </div>
 <footer>
-  <span id="root">—</span> · refresh every 2s
+  <span id="root">—</span>
 </footer>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function shortId(s) { return s ? s.slice(0, 8) : '?'; }
+function nowHHMMSS() {
+  const d = new Date();
+  return d.toTimeString().slice(0, 8);
+}
 
-function shortId(s) { return s.slice(0, 8); }
-
+// === state rendering ===
 function renderClaims(claims) {
   const el = $('claims');
   if (!claims.length) { el.className = 'empty'; el.textContent = 'なし'; return; }
@@ -101,16 +135,18 @@ function renderClaims(claims) {
   }).join('');
 }
 
-function renderIntent(intent, claimsByIntent, depth) {
+let flashTaskId = null;
+function renderIntent(intent, claimsByIntent) {
   const claimers = claimsByIntent[intent.id] || [];
   const isClosed = intent.status === 'closed';
   const isClaimed = claimers.length > 0;
   const cls = ['intent'];
   if (isClosed) cls.push('closed');
   if (isClaimed) cls.push('claimed');
+  if ((intent.tasks || []).some(t => t.id === flashTaskId)) cls.push('flash');
   const taskHTML = renderTasks(intent.tasks || []);
-  const childHTML = (intent.children || []).map(c => renderIntent(c, claimsByIntent, depth + 1)).join('');
-  return `<div class="${cls.join(' ')}">
+  const childHTML = (intent.children || []).map(c => renderIntent(c, claimsByIntent)).join('');
+  return `<div class="${cls.join(' ')}" data-id="${intent.id}">
     <div class="head">
       <span class="x ${isClosed?'closed':''}">${isClosed?'✕':'○'}</span>
       <span class="id">${shortId(intent.id)}</span>
@@ -137,13 +173,11 @@ function renderTasks(tasks) {
   return `<div class="tasks"><div class="counts">${badges}</div>${items}${more}</div>`;
 }
 
-let connected = false;
-async function refresh() {
+async function refreshState() {
   try {
     const r = await fetch('/api/state');
     if (!r.ok) throw new Error('http ' + r.status);
     const state = await r.json();
-    connected = true;
     $('status').textContent = '● connected';
     $('status').classList.remove('disconnected');
     $('ts').textContent = new Date().toISOString();
@@ -161,16 +195,70 @@ async function refresh() {
       intentsEl.textContent = 'なし';
     } else {
       intentsEl.className = '';
-      intentsEl.innerHTML = intents.map(i => renderIntent(i, claimsByIntent, 0)).join('');
+      intentsEl.innerHTML = intents.map(i => renderIntent(i, claimsByIntent)).join('');
     }
   } catch (e) {
-    connected = false;
     $('status').textContent = '⚠ daemon に接続できません';
     $('status').classList.add('disconnected');
   }
 }
-refresh();
-setInterval(refresh, 2000);
+
+// === event log via SSE ===
+const MAX_EVENTS = 50;
+const eventLog = [];
+function renderEvents() {
+  const el = $('events');
+  if (eventLog.length === 0) {
+    el.innerHTML = '<div class="empty">no events yet</div>';
+    return;
+  }
+  el.innerHTML = eventLog.map(e => {
+    const cls = e.method.replace(/\./g, '-');
+    let body = '';
+    if (e.params) {
+      const keys = Object.keys(e.params).filter(k => k !== 'principal');
+      body = keys.map(k => {
+        let v = e.params[k];
+        if (typeof v === 'string' && v.length > 60) v = v.slice(0, 57) + '…';
+        return `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`;
+      }).join(' ');
+    }
+    return `<div class="event">
+      <span class="when">${e.when}</span>
+      <span class="name ${cls}">${esc(e.method)}</span>
+      <div class="body">${esc(body)}</div>
+    </div>`;
+  }).join('');
+}
+
+function connectEvents() {
+  const es = new EventSource('/api/events');
+  es.onopen = () => { $('event-status').textContent = 'events: ● live'; };
+  es.onerror = () => {
+    $('event-status').textContent = 'events: ⚠ retry…';
+    es.close();
+    setTimeout(connectEvents, 2000);
+  };
+  es.onmessage = (msg) => {
+    try {
+      const obj = JSON.parse(msg.data);
+      if (!obj.method) return;
+      eventLog.unshift({ when: nowHHMMSS(), method: obj.method, params: obj.params });
+      while (eventLog.length > MAX_EVENTS) eventLog.pop();
+      renderEvents();
+      // ハイライトと再フェッチ
+      flashTaskId = obj.params && obj.params.taskId;
+      refreshState().then(() => {
+        setTimeout(() => { flashTaskId = null; refreshState(); }, 800);
+      });
+    } catch {}
+  };
+}
+
+refreshState();
+connectEvents();
+// 念のため 10s ごとに状態同期 (claim TTL の表示更新等)
+setInterval(refreshState, 10000);
 </script>
 </body>
 </html>
