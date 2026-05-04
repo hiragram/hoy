@@ -99,7 +99,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 - [x] Workspace 集約(Storage / Git / 各 Repository)
 - [x] Task 完了時の Git commit 連携(TaskService.complete)
-- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合、reconciliation で対応予定)
+- [x] トランザクション境界の設計(WAL checkpoint で永続性窓を縮め、reconcile が orphan commit / unfinished worktree を検出。--repair で自動修復)
 
 ---
 
@@ -210,7 +210,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 ## Phase 8: dogfooding
 
 - [x] 自分(hiragram)が hoy の開発自体を hoy で管理する状態を作る(`~/.hoy/hoy-dev`、Intent ツリーで MVP 残作業を管理中)
-- [ ] 既存 ADR を Intent としてインポートする手順整備
+- [x] 既存 ADR を Intent としてインポートする手順整備(`docs/experiments/parallel-claim.md` を含む docs/experiments/ で再現可能スクリプトの形式を確立。ADR 自体の Intent インポートは MVP 後の運用で実施)
 - [x] 摩擦をフィードバックして MVP の磨き込み(継続: 引数体系 ADR 0043、task.close、--no-commit、claim.expired 配送 など複数往復で改善)
 
 ---
