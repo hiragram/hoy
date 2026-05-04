@@ -1,0 +1,218 @@
+# MVP 開発 TODO
+
+ADR 0031 の MVP 必須項目を実装順に並べたチェックリスト。
+依存関係を意識した段階構成。各段階は前段階の上に積む。
+
+進め方:
+- 各項目は TDD t-wada スタイル(Red→Green→Refactor)で進める
+- 段階内の項目は基本上から、依存があれば前後する
+- 完了したら `[x]` に更新し、関連 ADR や補足を必要に応じて追記
+- 進める中で発覚した未決事項は `docs/open-questions.md` または新 ADR に切り出す
+
+---
+
+## Phase 0: 足場(完了)
+
+- [x] Swift Package 初期化(ADR 0040 の 5 モジュール構成)
+- [x] SQLite.swift 依存追加(ADR 0041)
+- [x] CI なしでもローカルで `swift test` が通る状態
+
+---
+
+## Phase 1: ドメインモデル(永続化なし、純粋値型)
+
+ストレージや I/O を一切持たない、メモリ上の値型として最初に固める。
+TDD で型の振る舞いを確定させてからストレージに乗せる。
+
+### 1.1 Intent
+
+- [ ] `Intent.create(title:)` が安定IDを採番(三角測量で UUID へ追い込む)
+- [ ] `version` は 1 で生まれる(ADR 0008)
+- [ ] `title` / `body` を保持
+- [ ] `status` は `active` で生まれる(ADR 0019)
+- [ ] `parentId: IntentID?` を持てる(ADR 0004、入れ子)
+- [ ] `update(title:body:)` で新しい version を返す(ADR 0008、ID は安定)
+- [ ] `close(reason:)` で `closed` に遷移、closing reason 必須(ADR 0019)
+- [ ] `closed` から `active` への遷移は禁止(ADR 0023)
+
+### 1.2 Task
+
+- [ ] `Task.create(intentId:title:)` で安定 ID
+- [ ] 必ず `intentId` を持つ(ADR 0001)
+- [ ] `createdBy: PrincipalRef` を保持(ADR 0006)
+- [ ] `status`: `open / claimed / in_progress / completed / reverted / closed`
+- [ ] `depends_on: [IntentRef@version]` を保持(ADR 0018)
+- [ ] `completed → reverted` 遷移を一級操作で持つ(ADR 0034)
+- [ ] Intent close 時に未完了 Task は cascade close(ADR 0024)
+
+### 1.3 VerificationCheck
+
+- [ ] `kind: automated | human` と `category: String` を持つ(concept §5.4)
+- [ ] `status: pending | running | passed | failed | waived`
+- [ ] `required: Bool`
+- [ ] `evidence` フィールド(任意の構造化データ)
+- [ ] Task は `[VerificationCheck]` を持つ
+- [ ] 完了判定: 必須 check がすべて `passed` か `waived`
+- [ ] `waived` 状態には理由と承認者が必須
+
+### 1.4 Claim
+
+- [ ] `Claim(principalId, targetIntentId, expiresAt)` 値型
+- [ ] Intent 単位で 1 Principal が排他(ADR 0009)
+- [ ] 親と子は独立に claim 可能(ADR 0010)
+- [ ] 書き込み排他、読み取り自由(ADR 0012)
+
+### 1.5 Principal / Session
+
+- [ ] `Principal` 値型(ADR 0025)
+- [ ] `Session` は Principal に紐づく、token 持ち
+- [ ] 1 Principal が複数 Session を持てる
+
+### 1.6 AuditEntry
+
+- [ ] `AuditEntry` 値型: `timestamp / actor / op / payload`(ADR 0027)
+- [ ] append-only な性質を型レベルで担保(mutating な操作を生やさない)
+
+---
+
+## Phase 2: ストレージ層(SQLite + Git)
+
+### 2.1 SQLite
+
+- [ ] `state.db` の配置場所を決定(`~/.hoy/<workspace>/state.db` 想定)
+- [ ] スキーマ定義(Intent / Task / Verification / Claim / Audit / Principal / Session)
+- [ ] マイグレーション仕組み(version テーブル + 起動時適用)
+- [ ] WAL モード有効化
+- [ ] Repository 抽象化(各エンティティ用、テストで in-memory 実装と差し替え可能に)
+- [ ] AuditLog は INSERT のみ、UPDATE/DELETE をトリガーで拒否(ADR 0027)
+
+### 2.2 Git ストレージ
+
+- [ ] daemon 内部リポジトリの初期化(`~/.hoy/<workspace>/repo.git`)
+- [ ] `git` subprocess 実行ラッパー(ADR 0036、stdout/stderr/exit を構造化)
+- [ ] Task 完了時のコミット作成(ADR 0014)
+- [ ] revert 操作(ADR 0034、裏で `git revert`)
+- [ ] rebase 操作(ADR 0017)
+
+### 2.3 統合 Repository
+
+- [ ] Intent / Task の CRUD を SQLite + Git の整合を取って実行
+- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合)
+
+---
+
+## Phase 3: ドメインサービス
+
+### 3.1 Claim 管理
+
+- [ ] claim 取得 API(競合時の挙動)
+- [ ] ハートビート受信と更新(ADR 0011)
+- [ ] 期限切れ claim の強制 release(タイマー / 起動時掃除)
+
+### 3.2 統合(Integration)
+
+- [ ] Task 完了時に main へ即時統合(ADR 0014)
+- [ ] コンフリクト時の自動 rebase(ADR 0017)
+- [ ] rebase 失敗時の差し戻し(エージェントへのイベント通知)
+- [ ] 統合後の必須検証経路再走(ADR 0017)
+
+### 3.3 検証経路実行
+
+- [ ] automated check の実行(`spec` の command を subprocess で実行)
+- [ ] 結果(stdout/stderr/exit)を evidence として保存
+- [ ] human check は外部承認待ち、status 遷移 API で `passed/failed/waived` 化
+- [ ] 並列実行ポリシー(open-questions #7)
+
+---
+
+## Phase 4: プロトコル定義(JSON-RPC)
+
+### 4.1 メソッド定義(HoyProtocol)
+
+- [ ] `intent.create / get / list / update / close`
+- [ ] `task.create / get / list / claim / complete / revert`
+- [ ] `verification.add / run / report / waive`
+- [ ] `claim.acquire / release / heartbeat`
+- [ ] `audit.append`(内部用、外部からは禁止)
+- [ ] エラーコード体系
+- [ ] バージョン情報の advertising
+
+### 4.2 イベント定義
+
+- [ ] イベントスキーマ(ADR 0016 の標準イベント)
+- [ ] `task.completed / verification.failed / claim.expired / conflict.detected` 等
+- [ ] サブスクリプション機構(同じ socket で push、または別チャネル)
+
+---
+
+## Phase 5: daemon
+
+### 5.1 ソケット listen
+
+- [ ] Unix domain socket 初期化(ADR 0039、`0600` 権限)
+- [ ] 接続受付と Session 確立
+- [ ] Principal 認証(token、ADR 0025)
+- [ ] graceful shutdown
+
+### 5.2 リクエスト dispatch
+
+- [ ] JSON-RPC 2.0 のパース・バリデーション
+- [ ] HoyProtocol メソッドを HoyCore に dispatch
+- [ ] エラー応答の整備
+- [ ] リクエストごとのトレースログ
+
+### 5.3 バックグラウンドジョブ
+
+- [ ] claim ハートビート期限切れ監視
+- [ ] 検証経路実行ワーカー
+- [ ] hook 起動(ADR 0016 の agent-dispatch.sh)
+
+---
+
+## Phase 6: クライアント
+
+### 6.1 CLI
+
+- [ ] `hoy daemon start / stop / status`
+- [ ] `hoy intent create / list / get / close`
+- [ ] `hoy task create / list / claim / complete / revert`
+- [ ] `hoy verification add / run / report / waive`
+- [ ] human readable と `--json` 出力の両対応
+- [ ] エラー表示の整備
+
+### 6.2 MCP サーバ
+
+- [ ] `hoy mcp` サブコマンドで stdio mode 起動
+- [ ] HoyProtocol のメソッドを MCP ツールとして公開
+- [ ] daemon への JSON-RPC 中継
+
+---
+
+## Phase 7: 運用最低限
+
+- [ ] 監査ログの append 書き出し(ADR 0027、クエリ機能は MVP 外)
+- [ ] reconciliation コマンド(ADR 0035、Git と SQLite の乖離検知・修復)
+- [ ] バックアップ・リストア(SQLite ファイル + Git リポジトリ)
+- [ ] エラー・パニック時のリカバリ動作
+
+---
+
+## Phase 8: dogfooding
+
+- [ ] 自分(hiragram)が hoy の開発自体を hoy で管理する状態を作る
+- [ ] 既存 ADR を Intent としてインポートする手順整備
+- [ ] 摩擦をフィードバックして MVP の磨き込み
+
+---
+
+## 見送り(MVP外)
+
+ADR 0031 で MVP 外と確定済み:
+
+- Web UI / TUI
+- ドリフト検出メタデータ(ADR 0021)
+- 監査ログのクエリ機構
+- 高度な権限・capability(ADR 0026)
+- マルチ開発者対応(ADR 0029)
+- 外部ツール統合(ADR 0032)
+- 意味レベル差分(concept §6.3)
