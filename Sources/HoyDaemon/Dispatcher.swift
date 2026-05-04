@@ -254,11 +254,24 @@ public final class Dispatcher: @unchecked Sendable {
                 guard let task = try self.workspace.tasks.get(id: params.id) else {
                     throw makeRPCError(code: RPCErrorCode.notFound, "task not found")
                 }
-                let result = try self.taskService.complete(task: task, by: actor)
+                let result = try self.taskService.complete(
+                    task: task, by: actor, commitChanges: params.commit ?? true
+                )
                 return Methods.TaskComplete.Result(
                     task: DTOMapper.toDTO(result.task),
                     sha: result.sha
                 )
+            }
+
+        case Methods.TaskClose.name:
+            return try handle(
+                Methods.TaskClose.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                let result = try self.taskService.close(
+                    taskId: params.id, by: actor, reason: params.reason
+                )
+                return Methods.TaskClose.Result(task: DTOMapper.toDTO(result.task))
             }
 
         case Methods.TaskRevert.name:

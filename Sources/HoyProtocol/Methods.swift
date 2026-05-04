@@ -127,12 +127,28 @@ public enum Methods {
         public static let name = "task.complete"
         public struct Params: Codable, Sendable, Equatable {
             public let id: String
-            public init(id: String) { self.id = id }
+            public let commit: Bool?
+            public init(id: String, commit: Bool? = nil) {
+                self.id = id; self.commit = commit
+            }
         }
         public struct Result: Codable, Sendable, Equatable {
             public let task: TaskDTO
             public let sha: String
             public init(task: TaskDTO, sha: String) { self.task = task; self.sha = sha }
+        }
+    }
+
+    public enum TaskClose: RPCMethod {
+        public static let name = "task.close"
+        public struct Params: Codable, Sendable, Equatable {
+            public let id: String
+            public let reason: String
+            public init(id: String, reason: String) { self.id = id; self.reason = reason }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let task: TaskDTO
+            public init(task: TaskDTO) { self.task = task }
         }
     }
 

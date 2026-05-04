@@ -257,8 +257,23 @@ struct IntentCommand: ParsableCommand {
 struct TaskCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "task",
-        subcommands: [Create.self, Get.self, List.self, Complete.self, Revert.self]
+        subcommands: [Create.self, Get.self, List.self, Complete.self, Close.self, Revert.self]
     )
+
+    struct Close: ParsableCommand {
+        @OptionGroup var options: GlobalOptions
+        @Argument var id: String
+        @Option var reason: String
+
+        func run() throws {
+            let client = RPCClient(socketPath: options.socketPath)
+            let result = try client.call(
+                Methods.TaskClose.self,
+                params: Methods.TaskClose.Params(id: id, reason: reason)
+            )
+            emit(result.task, json: options.json) { printTask(result.task) }
+        }
+    }
 
     struct List: ParsableCommand {
         @OptionGroup var options: GlobalOptions
@@ -316,15 +331,17 @@ struct TaskCommand: ParsableCommand {
     struct Complete: ParsableCommand {
         @OptionGroup var options: GlobalOptions
         @Argument var id: String
+        @Flag(name: .customLong("no-commit"), help: "git commit を行わずメタデータだけ完了にする") var noCommit: Bool = false
 
         func run() throws {
             let client = RPCClient(socketPath: options.socketPath)
             let result = try client.call(
                 Methods.TaskComplete.self,
-                params: Methods.TaskComplete.Params(id: id)
+                params: Methods.TaskComplete.Params(id: id, commit: !noCommit)
             )
             emit(result, json: options.json) {
-                print("completed: \(result.task.id) at \(result.sha)")
+                let suffix = result.sha.isEmpty ? "(metadata only)" : "at \(result.sha)"
+                print("completed: \(result.task.id) \(suffix)")
             }
         }
     }

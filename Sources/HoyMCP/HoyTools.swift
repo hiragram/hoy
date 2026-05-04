@@ -37,8 +37,13 @@ public enum HoyTools {
             tool("hoy_task_list", "Task 一覧", schema(properties: [
                 "intentId": ("string", false)
             ])),
-            tool("hoy_task_complete", "Task を完了", schema(properties: [
-                "id": ("string", true)
+            tool("hoy_task_complete", "Task を完了 (commit=false でメタデータのみ)", schema(properties: [
+                "id": ("string", true),
+                "commit": ("boolean", false)
+            ])),
+            tool("hoy_task_close", "Task を close (キャンセル/別経路完了)", schema(properties: [
+                "id": ("string", true),
+                "reason": ("string", true)
             ])),
             tool("hoy_task_revert", "Task を revert", schema(properties: [
                 "id": ("string", true)

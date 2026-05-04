@@ -44,12 +44,22 @@ public struct HoyTask: Equatable {
         )
     }
 
-    public func complete(sha: String) throws -> HoyTask {
+    public func complete(sha: String?) throws -> HoyTask {
         guard status != .completed else { throw HoyTaskError.invalidTransition }
         guard VerificationGate.allRequiredSatisfied(in: verifications) else {
             throw HoyTaskError.verificationsNotSatisfied
         }
         return with(status: .completed, completedSha: sha)
+    }
+
+    /// 「やらない」「他で済んだ」など完了でも revert でもなく Task を畳む。
+    public func close() throws -> HoyTask {
+        switch status {
+        case .closed, .reverted:
+            throw HoyTaskError.invalidTransition
+        case .open, .claimed, .inProgress, .completed:
+            return with(status: .closed, completedSha: completedSha)
+        }
     }
 
     public func revert() throws -> HoyTask {
