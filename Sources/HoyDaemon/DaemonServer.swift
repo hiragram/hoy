@@ -39,10 +39,27 @@ public final class DaemonServer: @unchecked Sendable {
 
     private func startPurgeLoop() {
         let workspace = self.workspace
+        let bus = self.dispatcher.events
         let t = Thread { [weak self] in
             while self?.running == true {
                 Thread.sleep(forTimeInterval: 5)
-                _ = try? workspace.claims.purgeExpired(now: Date())
+                guard let expired = try? workspace.claims.takeExpired(now: Date()) else { continue }
+                for claim in expired {
+                    let payload: [String: Any] = [
+                        "jsonrpc": "2.0",
+                        "method": EventName.claimExpired,
+                        "params": [
+                            "targetIntentId": claim.targetIntentId,
+                            "principal": [
+                                "id": claim.principal.id,
+                                "kind": claim.principal.kind.rawValue
+                            ]
+                        ]
+                    ]
+                    if let data = try? JSONSerialization.data(withJSONObject: payload) {
+                        bus.publish(event: EventName.claimExpired, payload: data)
+                    }
+                }
             }
         }
         t.name = "hoy-purge"

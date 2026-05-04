@@ -53,6 +53,37 @@ public final class ClaimRepository {
         return storage.db.changes
     }
 
+    /// 期限切れ claim を返してから削除する。expired イベント配送に使う。
+    public func takeExpired(now: Date) throws -> [Claim] {
+        let stmt = try storage.db.prepare(
+            """
+            SELECT target_intent_id, principal_id, principal_kind, acquired_at, expires_at
+            FROM claims WHERE expires_at < ?
+            """,
+            now.timeIntervalSince1970
+        )
+        var out: [Claim] = []
+        for row in stmt {
+            let target = row[0] as! String
+            let pid = row[1] as! String
+            let kindStr = row[2] as! String
+            let acquired = row[3] as! Double
+            let expires = row[4] as! Double
+            guard let kind = PrincipalRef.Kind(rawValue: kindStr) else { continue }
+            out.append(Claim(
+                principal: PrincipalRef(id: pid, kind: kind),
+                targetIntentId: target,
+                acquiredAt: Date(timeIntervalSince1970: acquired),
+                expiresAt: Date(timeIntervalSince1970: expires)
+            ))
+        }
+        try storage.db.run(
+            "DELETE FROM claims WHERE expires_at < ?",
+            now.timeIntervalSince1970
+        )
+        return out
+    }
+
     public func get(targetIntentId: String) throws -> Claim? {
         let stmt = try storage.db.prepare(
             """
