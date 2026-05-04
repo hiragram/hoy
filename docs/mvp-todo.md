@@ -26,7 +26,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.1 Intent
 
-- [ ] `Intent.create(title:)` が安定IDを採番(三角測量で UUID へ追い込む)
+- [x] `Intent.create(title:)` が安定IDを採番(三角測量で UUID へ追い込む)
 - [ ] `version` は 1 で生まれる(ADR 0008)
 - [ ] `title` / `body` を保持
 - [ ] `status` は `active` で生まれる(ADR 0019)

@@ -13,4 +13,10 @@ final class IntentTests: XCTestCase {
         let b = Intent.create(title: "b")
         XCTAssertNotEqual(a.id, b.id)
     }
+
+    // ADR 0008: 新規作成時の version は 1
+    func test_create_initialVersionIsOne() {
+        let intent = Intent.create(title: "x")
+        XCTAssertEqual(intent.version, 1)
+    }
 }
