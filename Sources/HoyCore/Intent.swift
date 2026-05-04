@@ -27,4 +27,15 @@ public struct Intent {
             parentId: parentId
         )
     }
+
+    public func update(title: String? = nil, body: String? = nil) -> Intent {
+        return Intent(
+            id: id,
+            version: version + 1,
+            title: title ?? self.title,
+            body: body ?? self.body,
+            status: status,
+            parentId: parentId
+        )
+    }
 }

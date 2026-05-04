@@ -52,4 +52,25 @@ struct IntentTests {
         let child = Intent.create(title: "child", parentId: parent.id)
         #expect(child.parentId == parent.id)
     }
+
+    // ADR 0008: update で version は増分、id は不変
+    @Test func update_incrementsVersionPreservesId() {
+        let intent = Intent.create(title: "v1")
+        let updated = intent.update(title: "v2")
+        #expect(updated.id == intent.id)
+        #expect(updated.version == intent.version + 1)
+    }
+
+    @Test func update_changesTitleAndBody() {
+        let intent = Intent.create(title: "old", body: "old body")
+        let updated = intent.update(title: "new", body: "new body")
+        #expect(updated.title == "new")
+        #expect(updated.body == "new body")
+    }
+
+    @Test func update_preservesParentId() {
+        let intent = Intent.create(title: "x", parentId: "parent-1")
+        let updated = intent.update(title: "y")
+        #expect(updated.parentId == "parent-1")
+    }
 }
