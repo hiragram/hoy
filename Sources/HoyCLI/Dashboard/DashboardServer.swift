@@ -119,24 +119,34 @@ public final class DashboardServer: @unchecked Sendable {
             "version": intent.version,
             "title": intent.title,
             "status": intent.status,
+            "body": intent.body,
             "tasks": tasks.map { t -> [String: Any] in
                 let verifs = t.verifications.map { v -> [String: Any] in
-                    return [
+                    var out: [String: Any] = [
                         "id": v.id,
                         "kind": v.kind,
                         "category": v.category,
                         "status": v.status,
-                        "required": v.required
+                        "required": v.required,
+                        "spec": v.spec
                     ]
+                    if let evidence = v.evidence { out["evidence"] = evidence }
+                    return out
                 }
-                return [
+                var taskOut: [String: Any] = [
                     "id": t.id,
                     "title": t.title,
                     "status": t.status,
-                    "verifications": verifs
+                    "createdBy": ["id": t.createdBy.id, "kind": t.createdBy.kind],
+                    "verifications": verifs,
+                    "dependsOn": t.dependsOn.map { ["id": $0.id, "version": $0.version] }
                 ]
+                if let sha = t.completedSha { taskOut["completedSha"] = sha }
+                return taskOut
             }
         ]
+        if let reason = intent.closedReason { node["closedReason"] = reason }
+        if let parentId = intent.parentId { node["parentId"] = parentId }
         if !children.isEmpty {
             node["children"] = try children.map { try buildNode(intent: $0, rpc: rpc) }
         }

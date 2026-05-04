@@ -85,6 +85,35 @@ enum DashboardHTML {
   .verif-dot.failed { background: var(--bad); }
   .verif-dot.waived { background: var(--muted); }
   .verif-dot.pending, .verif-dot.running { background: var(--warn); }
+  .clickable { cursor: pointer; }
+  .clickable:hover { outline: 1px solid var(--accent); }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+                   display: none; align-items: flex-start; justify-content: center;
+                   padding-top: 60px; z-index: 100; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+           max-width: 720px; width: 92%; max-height: 80vh; overflow-y: auto;
+           padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .modal h3 { margin: 0 0 12px; font-size: 14px; font-weight: 700; }
+  .modal .kind { color: var(--accent); font-size: 11px; text-transform: uppercase;
+                 letter-spacing: 0.08em; margin-bottom: 4px; }
+  .modal .row { margin: 6px 0; font-size: 13px; }
+  .modal .row .k { color: var(--muted); display: inline-block; min-width: 90px; }
+  .modal .body-text { background: var(--bg); border: 1px solid var(--line);
+                      padding: 8px; border-radius: 3px; white-space: pre-wrap;
+                      font-size: 12px; margin-top: 4px; }
+  .modal .verif { padding: 8px; background: var(--bg); border-left: 3px solid var(--line);
+                  border-radius: 3px; margin: 6px 0; font-size: 12px; }
+  .modal .verif.passed { border-left-color: var(--good); }
+  .modal .verif.failed { border-left-color: var(--bad); }
+  .modal .verif.waived { border-left-color: var(--muted); }
+  .modal .verif.pending, .modal .verif.running { border-left-color: var(--warn); }
+  .modal .verif .vhead { font-weight: 600; margin-bottom: 4px; }
+  .modal .task-row { padding: 6px 8px; background: var(--bg); border-radius: 3px;
+                     margin: 4px 0; font-size: 12px; }
+  .modal .close-btn { float: right; cursor: pointer; color: var(--muted);
+                      font-size: 16px; padding: 0 4px; }
+  .modal .close-btn:hover { color: var(--fg); }
   footer { padding: 12px 20px; border-top: 1px solid var(--line);
            color: var(--muted); font-size: 12px; }
   .bad { color: var(--bad); }
@@ -125,8 +154,11 @@ enum DashboardHTML {
   </div>
 </div>
 <footer>
-  <span id="root">—</span>
+  <span id="root">—</span> · click any intent / task to inspect
 </footer>
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-body"></div>
+</div>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -153,6 +185,17 @@ function renderClaims(claims) {
 }
 
 let flashTaskId = null;
+const intentMap = {};   // id -> intent (with full body/children/etc)
+const taskMap = {};     // id -> { task, intent }
+
+function indexState(intents) {
+  for (const i of intents) {
+    intentMap[i.id] = i;
+    for (const t of (i.tasks || [])) taskMap[t.id] = { task: t, intent: i };
+    if (i.children) indexState(i.children);
+  }
+}
+
 function renderIntent(intent, claimsByIntent) {
   const claimers = claimsByIntent[intent.id] || [];
   const isClosed = intent.status === 'closed';
@@ -163,7 +206,8 @@ function renderIntent(intent, claimsByIntent) {
   if ((intent.tasks || []).some(t => t.id === flashTaskId)) cls.push('flash');
   const taskHTML = renderTasks(intent.tasks || []);
   const childHTML = (intent.children || []).map(c => renderIntent(c, claimsByIntent)).join('');
-  return `<div class="${cls.join(' ')}" data-id="${intent.id}">
+  cls.push('clickable');
+  return `<div class="${cls.join(' ')}" data-id="${intent.id}" onclick="event.stopPropagation();showIntent('${intent.id}')">
     <div class="head">
       <span class="x ${isClosed?'closed':''}">${isClosed?'✕':'○'}</span>
       <span class="id">${shortId(intent.id)}</span>
@@ -189,7 +233,7 @@ function renderTasks(tasks) {
       `<span class="verif-dot ${v.status}" title="${esc(v.kind)}:${esc(v.category)} ${esc(v.status)}"></span>`
     ).join('');
     const verifBlock = verifs ? `<span class="verif-summary">${verifs}</span>` : '';
-    return `<div class="item">· <span class="tid">${shortId(t.id)}</span> ${esc(t.title)}${verifBlock}</div>`;
+    return `<div class="item clickable" onclick="event.stopPropagation();showTask('${t.id}')">· <span class="tid">${shortId(t.id)}</span> ${esc(t.title)}${verifBlock}</div>`;
   }).join('');
   const more = active.length > 5 ? `<div class="item">… +${active.length - 5} more</div>` : '';
   return `<div class="tasks"><div class="counts">${badges}</div>${items}${more}</div>`;
@@ -212,6 +256,70 @@ function renderAudit(entries) {
   }).join('');
 }
 
+function showIntent(id) {
+  const i = intentMap[id];
+  if (!i) return;
+  const tasks = i.tasks || [];
+  const taskList = tasks.length ? tasks.map(t => `
+    <div class="task-row clickable" onclick="event.stopPropagation();showTask('${t.id}')">
+      <span class="tid">${shortId(t.id)}</span>
+      [${esc(t.status)}] ${esc(t.title)}
+    </div>`).join('') : '<div class="empty" style="padding:8px">no tasks</div>';
+  const closedInfo = i.closedReason ? `<div class="row"><span class="k">closed reason</span> ${esc(i.closedReason)}</div>` : '';
+  const parentInfo = i.parentId ? `<div class="row"><span class="k">parent</span> ${shortId(i.parentId)}</div>` : '';
+  const bodyHTML = i.body ? `<div class="row"><span class="k">body</span></div><div class="body-text">${esc(i.body)}</div>` : '';
+  $('modal-body').innerHTML = `
+    <span class="close-btn" onclick="closeModal()">×</span>
+    <div class="kind">intent</div>
+    <h3>${esc(i.title)}</h3>
+    <div class="row"><span class="k">id</span> ${esc(i.id)}</div>
+    <div class="row"><span class="k">version</span> ${i.version}</div>
+    <div class="row"><span class="k">status</span> ${esc(i.status)}</div>
+    ${closedInfo}
+    ${parentInfo}
+    ${bodyHTML}
+    <div class="row" style="margin-top:12px"><span class="k">tasks (${tasks.length})</span></div>
+    ${taskList}
+  `;
+  $('modal').classList.add('open');
+}
+
+function showTask(id) {
+  const entry = taskMap[id];
+  if (!entry) return;
+  const t = entry.task;
+  const verifList = (t.verifications || []).map(v => {
+    const evidenceHTML = v.evidence ? `<div class="body-text">${esc(v.evidence)}</div>` : '';
+    return `<div class="verif ${v.status}">
+      <div class="vhead">[${esc(v.status)}] ${esc(v.kind)}:${esc(v.category)}${v.required ? ' (required)' : ''}</div>
+      <div style="color:var(--muted);font-size:11px">spec: ${esc(v.spec || '')}</div>
+      ${evidenceHTML}
+    </div>`;
+  }).join('') || '<div class="empty" style="padding:8px">no checks</div>';
+  const deps = (t.dependsOn || []).map(d => `${shortId(d.id)}@v${d.version}`).join(', ') || 'なし';
+  const sha = t.completedSha ? t.completedSha : '—';
+  const intentInfo = entry.intent ? `${shortId(entry.intent.id)} ${esc(entry.intent.title)}` : '';
+  $('modal-body').innerHTML = `
+    <span class="close-btn" onclick="closeModal()">×</span>
+    <div class="kind">task</div>
+    <h3>${esc(t.title)}</h3>
+    <div class="row"><span class="k">id</span> ${esc(t.id)}</div>
+    <div class="row"><span class="k">intent</span> <span class="clickable" onclick="showIntent('${entry.intent.id}')">${intentInfo}</span></div>
+    <div class="row"><span class="k">status</span> ${esc(t.status)}</div>
+    <div class="row"><span class="k">created by</span> ${esc(t.createdBy.id)} (${esc(t.createdBy.kind)})</div>
+    <div class="row"><span class="k">depends on</span> ${esc(deps)}</div>
+    <div class="row"><span class="k">completed sha</span> ${esc(sha)}</div>
+    <div class="row" style="margin-top:12px"><span class="k">verifications (${(t.verifications || []).length})</span></div>
+    ${verifList}
+  `;
+  $('modal').classList.add('open');
+}
+
+function closeModal() {
+  $('modal').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
 async function refreshState() {
   try {
     const r = await fetch('/api/state');
@@ -228,6 +336,10 @@ async function refreshState() {
     }
     renderClaims(claims);
     const intents = state.intents || [];
+    // click 用のインデックス再構築
+    Object.keys(intentMap).forEach(k => delete intentMap[k]);
+    Object.keys(taskMap).forEach(k => delete taskMap[k]);
+    indexState(intents);
     const intentsEl = $('intents');
     if (!intents.length) {
       intentsEl.className = 'empty';
