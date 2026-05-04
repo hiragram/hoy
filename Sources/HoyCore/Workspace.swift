@@ -13,6 +13,7 @@ public final class Workspace {
     public let sessions: SessionRepository
     public let audit: AuditLogRepository
     public let hooks: HookRunner
+    public let worktrees: WorktreeManager
 
     private init(
         root: String,
@@ -29,6 +30,7 @@ public final class Workspace {
         self.sessions = SessionRepository(storage: storage)
         self.audit = AuditLogRepository(storage: storage)
         self.hooks = HookRunner(workspaceRoot: root)
+        self.worktrees = WorktreeManager(workspaceRoot: root, mainGit: git)
     }
 
     public static func open(at root: String) throws -> Workspace {
