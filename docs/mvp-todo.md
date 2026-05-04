@@ -65,9 +65,9 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.5 Principal / Session
 
-- [ ] `Principal` 値型(ADR 0025)
-- [ ] `Session` は Principal に紐づく、token 持ち
-- [ ] 1 Principal が複数 Session を持てる
+- [x] `Principal` 値型(ADR 0025)
+- [x] `Session` は Principal に紐づく、token 持ち
+- [x] 1 Principal が複数 Session を持てる
 
 ### 1.6 AuditEntry
 
