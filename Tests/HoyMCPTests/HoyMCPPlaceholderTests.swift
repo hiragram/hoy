@@ -1,8 +1,8 @@
-import XCTest
+import Testing
 @testable import HoyMCP
 
-final class HoyMCPPlaceholderTests: XCTestCase {
-    func testPlaceholder() {
-        XCTAssertTrue(true)
+struct HoyMCPPlaceholderTests {
+    @Test func placeholder() {
+        #expect(Bool(true))
     }
 }

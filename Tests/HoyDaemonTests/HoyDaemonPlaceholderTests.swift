@@ -1,8 +1,8 @@
-import XCTest
+import Testing
 @testable import HoyDaemon
 
-final class HoyDaemonPlaceholderTests: XCTestCase {
-    func testPlaceholder() {
-        XCTAssertTrue(true)
+struct HoyDaemonPlaceholderTests {
+    @Test func placeholder() {
+        #expect(Bool(true))
     }
 }

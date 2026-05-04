@@ -5,6 +5,7 @@ ADR 0031 の MVP 必須項目を実装順に並べたチェックリスト。
 
 進め方:
 - 各項目は TDD t-wada スタイル(Red→Green→Refactor)で進める
+- テストは Swift Testing(ADR 0042)で書く
 - 段階内の項目は基本上から、依存があれば前後する
 - 完了したら `[x]` に更新し、関連 ADR や補足を必要に応じて追記
 - 進める中で発覚した未決事項は `docs/open-questions.md` または新 ADR に切り出す

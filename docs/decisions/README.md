@@ -62,3 +62,4 @@
 | [0039](0039-transport-unix-socket-jsonrpc.md) | トランスポートはUnix socket+JSON-RPC | Accepted | — |
 | [0040](0040-module-structure.md) | モジュール構成: core/protocol/daemon/cli/mcp | Accepted | — |
 | [0041](0041-sqlite-library-choice.md) | SQLiteライブラリは stephencelis/SQLite.swift | Accepted | — |
+| [0042](0042-test-framework-swift-testing.md) | テストフレームワークは Swift Testing | Accepted | — |

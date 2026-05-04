@@ -19,6 +19,10 @@
 
 ## 開発ルール
 
+### テストフレームワーク
+
+**Swift Testing** を使う(ADR 0042)。`import Testing` / `@Test` / `#expect` の作法。XCTest は使わない。
+
 ### TDD: t-wada スタイルを厳密に
 
 t-wada(和田卓人)氏が提唱するTDDのサイクルを厳密に守る:
