@@ -26,9 +26,11 @@ public enum RPCClientError: Error, CustomStringConvertible {
 
 public struct RPCClient {
     public let socketPath: String
+    public let token: String?
 
-    public init(socketPath: String) {
+    public init(socketPath: String, token: String? = nil) {
         self.socketPath = socketPath
+        self.token = token
     }
 
     public func call<M: RPCMethod>(
@@ -36,7 +38,8 @@ public struct RPCClient {
         params: M.Params,
         requestId: String = UUID().uuidString
     ) throws -> M.Result {
-        let req = RPCRequest(id: requestId, method: M.name, params: params)
+        let auth = token.map { AuthInfo(token: $0) }
+        let req = RPCRequest(id: requestId, method: M.name, params: params, auth: auth)
         let reqData = try JSONEncoder().encode(req)
 
         let respData = try sendOnce(reqData)

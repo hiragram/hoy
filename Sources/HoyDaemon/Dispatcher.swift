@@ -44,13 +44,17 @@ public final class Dispatcher: @unchecked Sendable {
     }
 
     /// 1 リクエスト分の JSON Data を処理し、レスポンスの JSON Data を返す。
-    /// principal は接続単位の認証で確定する想定 (Auth は呼出側)。
-    public func handle(requestData: Data, actor: PrincipalRef) -> Data {
+    /// `defaultActor` は token が付いていないリクエストの fallback。
+    /// auth.token があれば SessionRepository で解決して上書きする。
+    public func handle(requestData: Data, actor defaultActor: PrincipalRef) -> Data {
         let decoder = JSONDecoder()
         let encoder = JSONEncoder()
 
-        // method 名を先に取り出すために envelope を 2 段階デコードする
-        struct Header: Decodable { let id: String; let method: String }
+        struct Header: Decodable {
+            let id: String
+            let method: String
+            let auth: AuthInfo?
+        }
         let header: Header
         do {
             header = try decoder.decode(Header.self, from: requestData)
@@ -61,6 +65,22 @@ public final class Dispatcher: @unchecked Sendable {
                 message: "parse error",
                 encoder: encoder
             )
+        }
+
+        // auth.token があれば Principal を解決
+        var actor = defaultActor
+        if let token = header.auth?.token {
+            if let session = try? workspace.sessions.findByToken(token),
+               let principal = try? workspace.principals.get(id: session.principalId) {
+                actor = principal.ref
+                // ハートビート的に lastSeenAt を更新
+                try? workspace.sessions.save(session.touch(at: Date()))
+            } else {
+                return encodeError(
+                    id: header.id, code: RPCErrorCode.unauthorized,
+                    message: "invalid or expired token", encoder: encoder
+                )
+            }
         }
 
         defer { trace(method: header.method, requestId: header.id, actor: actor) }
@@ -317,6 +337,68 @@ public final class Dispatcher: @unchecked Sendable {
                     reason: params.reason, by: actor
                 )
                 return Methods.VerificationWaive.Result(task: DTOMapper.toDTO(task))
+            }
+
+        case Methods.SessionCreate.name:
+            return try handle(
+                Methods.SessionCreate.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                guard let kind = PrincipalRef.Kind(rawValue: params.kind) else {
+                    throw makeRPCError(
+                        code: RPCErrorCode.invalidParams,
+                        "kind must be 'human' or 'agent'"
+                    )
+                }
+                let principal: Principal
+                if let existing = try self.workspace.principals.get(id: params.principalId) {
+                    principal = existing
+                } else {
+                    principal = Principal(
+                        id: params.principalId,
+                        kind: kind,
+                        displayName: params.displayName,
+                        createdAt: Date()
+                    )
+                    try self.workspace.principals.save(principal)
+                }
+                let session = Session.start(for: principal, now: Date())
+                try self.workspace.sessions.save(session)
+                self.audit("session.create", by: actor, payload: [
+                    "principalId": principal.id, "sessionId": session.id
+                ])
+                return Methods.SessionCreate.Result(
+                    sessionId: session.id,
+                    token: session.token,
+                    principal: DTOMapper.toDTO(principal.ref)
+                )
+            }
+
+        case Methods.SessionDelete.name:
+            return try handle(
+                Methods.SessionDelete.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                try self.workspace.storage.db.run(
+                    "DELETE FROM sessions WHERE id = ?",
+                    params.sessionId
+                )
+                self.audit("session.delete", by: actor, payload: [
+                    "sessionId": params.sessionId
+                ])
+                return Methods.SessionDelete.Result()
+            }
+
+        case Methods.SessionWhoami.name:
+            return try handle(
+                Methods.SessionWhoami.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { _ in
+                // 現在のリクエストの actor をそのまま返す
+                return Methods.SessionWhoami.Result(
+                    principal: DTOMapper.toDTO(actor),
+                    sessionId: nil
+                )
             }
 
         case Methods.ClaimAcquire.name:

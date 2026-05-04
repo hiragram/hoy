@@ -5,12 +5,22 @@ public struct RPCRequest<Params: Codable & Sendable>: Codable, Sendable {
     public let id: String
     public let method: String
     public let params: Params
+    public let auth: AuthInfo?
 
-    public init(id: String, method: String, params: Params) {
+    public init(id: String, method: String, params: Params, auth: AuthInfo? = nil) {
         self.jsonrpc = "2.0"
         self.id = id
         self.method = method
         self.params = params
+        self.auth = auth
+    }
+}
+
+public struct AuthInfo: Codable, Sendable, Equatable {
+    public let token: String
+
+    public init(token: String) {
+        self.token = token
     }
 }
 

@@ -119,6 +119,7 @@ hoy mcp <<<'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 | `hoy claim acquire \| release \| heartbeat` | Per-Intent exclusive work claims |
 | `hoy reconcile` | Detect drift between SQLite and git |
 | `hoy backup <dir>` / `hoy restore <snapshot>` | Snapshot of `state.db` + `repo/` |
+| `hoy auth login \| logout \| whoami` | Issue/revoke a session token (ADR 0025) |
 | `hoy mcp` | Run as an MCP stdio server, bridging to the daemon |
 
 Every subcommand follows a consistent argument convention (see [ADR 0043](docs/decisions/0043-cli-argument-convention.md)):
@@ -141,7 +142,7 @@ Every subcommand follows a consistent argument convention (see [ADR 0043](docs/d
 Tracked in `docs/mvp-todo.md`. The notable gaps:
 
 - Conflict resolution: automatic rebase + verification re-run on integration conflicts ([ADR 0017](docs/decisions/0017-conflict-resolution.md)). Needs the parallel-claim use case to be exercised first.
-- Token-based authentication and session establishment ([ADR 0025](docs/decisions/0025-principal-session-model.md)). The daemon currently uses a single configured Principal per process.
+- ~~Token-based authentication and session establishment ([ADR 0025](docs/decisions/0025-principal-session-model.md)).~~ ✅ Implemented. Run `hoy auth login --principal-id <id> --display-name "..."` to issue a session token; subsequent CLI/MCP calls authenticate as that Principal. Without a token the daemon falls back to its `--principal-id` default for local convenience.
 - Event push (subscription channel for `task.completed`, `claim.expired`, `conflict.detected`). Hooks fill the gap for now.
 - Multi-developer mode is explicitly out of scope for the MVP ([ADR 0029](docs/decisions/0029-mvp-single-developer.md)).
 

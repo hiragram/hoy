@@ -234,6 +234,58 @@ public enum Methods {
         }
     }
 
+    // MARK: - session
+
+    public enum SessionCreate: RPCMethod {
+        public static let name = "session.create"
+        public struct Params: Codable, Sendable, Equatable {
+            public let principalId: String
+            public let kind: String  // "human" | "agent"
+            public let displayName: String
+            public init(principalId: String, kind: String, displayName: String) {
+                self.principalId = principalId
+                self.kind = kind
+                self.displayName = displayName
+            }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let sessionId: String
+            public let token: String
+            public let principal: PrincipalRefDTO
+            public init(sessionId: String, token: String, principal: PrincipalRefDTO) {
+                self.sessionId = sessionId
+                self.token = token
+                self.principal = principal
+            }
+        }
+    }
+
+    public enum SessionDelete: RPCMethod {
+        public static let name = "session.delete"
+        public struct Params: Codable, Sendable, Equatable {
+            public let sessionId: String
+            public init(sessionId: String) { self.sessionId = sessionId }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public init() {}
+        }
+    }
+
+    public enum SessionWhoami: RPCMethod {
+        public static let name = "session.whoami"
+        public struct Params: Codable, Sendable, Equatable {
+            public init() {}
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let principal: PrincipalRefDTO
+            public let sessionId: String?
+            public init(principal: PrincipalRefDTO, sessionId: String?) {
+                self.principal = principal
+                self.sessionId = sessionId
+            }
+        }
+    }
+
     // MARK: - claim
 
     public enum ClaimAcquire: RPCMethod {

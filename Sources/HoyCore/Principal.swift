@@ -6,6 +6,13 @@ public struct Principal: Equatable {
     public let displayName: String
     public let createdAt: Date
 
+    public init(id: String, kind: PrincipalRef.Kind, displayName: String, createdAt: Date) {
+        self.id = id
+        self.kind = kind
+        self.displayName = displayName
+        self.createdAt = createdAt
+    }
+
     public static func create(
         kind: PrincipalRef.Kind,
         displayName: String,

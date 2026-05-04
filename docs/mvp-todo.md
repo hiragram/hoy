@@ -154,8 +154,8 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 ### 5.1 ソケット listen
 
 - [x] Unix domain socket 初期化(UnixSocketServer、`0600` 権限、ADR 0039)
-- [ ] 接続受付と Session 確立(Phase 5.1 後半: TokenAuthenticator)
-- [ ] Principal 認証(token、ADR 0025)
+- [x] 接続受付と Session 確立(session.create / session.delete / session.whoami、TokenStore)
+- [x] Principal 認証(token、ADR 0025。RPCRequest envelope に auth.token、Dispatcher が Session→Principal 解決、不正 token は -32002)
 - [x] graceful shutdown(stop)
 
 ### 5.2 リクエスト dispatch

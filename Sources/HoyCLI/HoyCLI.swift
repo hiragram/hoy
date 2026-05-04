@@ -20,6 +20,7 @@ public struct HoyApp: ParsableCommand {
             ReconcileCommand.self,
             BackupCommand.self,
             RestoreCommand.self,
+            AuthCommand.self,
         ]
     )
 
@@ -44,6 +45,11 @@ struct GlobalOptions: ParsableArguments {
 
     var rootPath: String { root ?? HoyPaths.defaultRoot() }
     var socketPath: String { socket ?? HoyPaths.defaultSocketPath(root: rootPath) }
+
+    func makeClient() -> RPCClient {
+        let token = TokenStore.load(root: rootPath)?.token
+        return RPCClient(socketPath: socketPath, token: token)
+    }
 }
 
 func emit<T: Encodable>(_ value: T, json: Bool, human: () -> Void) {
@@ -163,7 +169,7 @@ struct IntentCommand: ParsableCommand {
         @Flag(name: .customLong("include-closed")) var includeClosed: Bool = false
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.IntentList.self,
                 params: Methods.IntentList.Params(
@@ -185,7 +191,7 @@ struct IntentCommand: ParsableCommand {
         @Option(name: .customLong("parent")) var parentId: String?
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.IntentCreate.self,
                 params: Methods.IntentCreate.Params(
@@ -203,7 +209,7 @@ struct IntentCommand: ParsableCommand {
         @Argument var id: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.IntentGet.self,
                 params: Methods.IntentGet.Params(id: id)
@@ -227,7 +233,7 @@ struct IntentCommand: ParsableCommand {
         @Option var body: String?
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.IntentUpdate.self,
                 params: Methods.IntentUpdate.Params(id: id, title: title, body: body)
@@ -242,7 +248,7 @@ struct IntentCommand: ParsableCommand {
         @Option var reason: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.IntentClose.self,
                 params: Methods.IntentClose.Params(id: id, reason: reason)
@@ -266,7 +272,7 @@ struct TaskCommand: ParsableCommand {
         @Option var reason: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskClose.self,
                 params: Methods.TaskClose.Params(id: id, reason: reason)
@@ -280,7 +286,7 @@ struct TaskCommand: ParsableCommand {
         @Option(name: .customLong("intent")) var intentId: String?
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskList.self,
                 params: Methods.TaskList.Params(intentId: intentId)
@@ -299,7 +305,7 @@ struct TaskCommand: ParsableCommand {
         @Argument var title: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskCreate.self,
                 params: Methods.TaskCreate.Params(intentId: intentId, title: title)
@@ -315,7 +321,7 @@ struct TaskCommand: ParsableCommand {
         @Argument var id: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskGet.self,
                 params: Methods.TaskGet.Params(id: id)
@@ -334,7 +340,7 @@ struct TaskCommand: ParsableCommand {
         @Flag(name: .customLong("no-commit"), help: "git commit を行わずメタデータだけ完了にする") var noCommit: Bool = false
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskComplete.self,
                 params: Methods.TaskComplete.Params(id: id, commit: !noCommit)
@@ -351,7 +357,7 @@ struct TaskCommand: ParsableCommand {
         @Argument var id: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskRevert.self,
                 params: Methods.TaskRevert.Params(id: id)
@@ -380,7 +386,7 @@ struct VerificationCommand: ParsableCommand {
         @Flag(name: .customLong("optional"), help: "required=false にする") var optional: Bool = false
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.VerificationAdd.self,
                 params: Methods.VerificationAdd.Params(
@@ -397,7 +403,7 @@ struct VerificationCommand: ParsableCommand {
         @Argument(help: "対象 Task ID") var taskId: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.VerificationRun.self,
                 params: Methods.VerificationRun.Params(taskId: taskId)
@@ -414,7 +420,7 @@ struct VerificationCommand: ParsableCommand {
         @Option(help: "stdout/stderr など根拠の記録") var evidence: String = ""
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.VerificationReport.self,
                 params: Methods.VerificationReport.Params(
@@ -433,7 +439,7 @@ struct VerificationCommand: ParsableCommand {
         @Option var reason: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.VerificationWaive.self,
                 params: Methods.VerificationWaive.Params(
@@ -459,7 +465,7 @@ struct ClaimCommand: ParsableCommand {
         @Option(help: "TTL (秒)") var ttl: Double = 300
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.ClaimAcquire.self,
                 params: Methods.ClaimAcquire.Params(
@@ -477,7 +483,7 @@ struct ClaimCommand: ParsableCommand {
         @Argument var intentId: String
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             _ = try client.call(
                 Methods.ClaimRelease.self,
                 params: Methods.ClaimRelease.Params(targetIntentId: intentId)
@@ -495,7 +501,7 @@ struct ClaimCommand: ParsableCommand {
         @Option var ttl: Double = 300
 
         func run() throws {
-            let client = RPCClient(socketPath: options.socketPath)
+            let client = options.makeClient()
             let result = try client.call(
                 Methods.ClaimHeartbeat.self,
                 params: Methods.ClaimHeartbeat.Params(
@@ -504,6 +510,85 @@ struct ClaimCommand: ParsableCommand {
             )
             emit(result.claim, json: options.json) {
                 print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
+            }
+        }
+    }
+}
+
+// MARK: - auth
+
+struct AuthCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "auth",
+        abstract: "Principal/Session の管理",
+        subcommands: [Login.self, Logout.self, Whoami.self]
+    )
+
+    struct Login: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "login", abstract: "Principal を作成 (なければ) し token を発行 / 保存")
+
+        @OptionGroup var options: GlobalOptions
+        @Option(name: .customLong("principal-id"), help: "Principal ID (一意)") var principalId: String
+        @Option(help: "human or agent") var kind: String = "human"
+        @Option(name: .customLong("display-name"), help: "表示名") var displayName: String
+
+        func run() throws {
+            // 認証なしで session.create を叩く (token なしで OK)
+            let client = RPCClient(socketPath: options.socketPath, token: nil)
+            let result = try client.call(
+                Methods.SessionCreate.self,
+                params: Methods.SessionCreate.Params(
+                    principalId: principalId, kind: kind, displayName: displayName
+                )
+            )
+            try TokenStore.save(
+                StoredToken(
+                    sessionId: result.sessionId,
+                    token: result.token,
+                    principalId: result.principal.id
+                ),
+                root: options.rootPath
+            )
+            emit(result, json: options.json) {
+                print("logged in: principal=\(result.principal.id) session=\(result.sessionId)")
+                print("token saved to \(TokenStore.path(root: options.rootPath))")
+            }
+        }
+    }
+
+    struct Logout: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "logout", abstract: "Session を破棄して token を削除")
+
+        @OptionGroup var options: GlobalOptions
+
+        func run() throws {
+            guard let stored = TokenStore.load(root: options.rootPath) else {
+                print("not logged in")
+                return
+            }
+            let client = options.makeClient()
+            _ = try? client.call(
+                Methods.SessionDelete.self,
+                params: Methods.SessionDelete.Params(sessionId: stored.sessionId)
+            )
+            TokenStore.clear(root: options.rootPath)
+            print("logged out")
+        }
+    }
+
+    struct Whoami: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "whoami", abstract: "現在の token から解決される Principal を表示")
+
+        @OptionGroup var options: GlobalOptions
+
+        func run() throws {
+            let client = options.makeClient()
+            let result = try client.call(
+                Methods.SessionWhoami.self,
+                params: Methods.SessionWhoami.Params()
+            )
+            emit(result.principal, json: options.json) {
+                print("\(result.principal.id) (\(result.principal.kind))")
             }
         }
     }
@@ -577,32 +662,37 @@ struct MCPCommand: ParsableCommand {
     @OptionGroup var options: GlobalOptions
 
     func run() throws {
-        let client = RPCClient(socketPath: options.socketPath)
+        let client = options.makeClient()
+        let socketPath = client.socketPath
+        let token = client.token
         let server = MCPServer(tools: HoyTools.all()) { toolName, argsData in
             guard let method = HoyTools.mapToolNameToRPCMethod(toolName) else {
                 return Data("{\"error\":\"unknown tool: \(toolName)\"}".utf8)
             }
-            // tools/call は arguments を hoy method の params としてそのまま転送する。
-            // RPCClient の薄いラッパは不要 — 直接 socket に投げる。
-            return forwardRaw(method: method, paramsData: argsData, socketPath: client.socketPath)
+            return forwardRaw(
+                method: method, paramsData: argsData,
+                socketPath: socketPath, token: token
+            )
         }
         server.run()
     }
+}
 
-    private func forwardRaw(method: String, paramsData: Data, socketPath: String) -> Data {
-        // RPCRequest envelope を組み立てる
-        let id = UUID().uuidString
-        let envelope: [String: Any] = [
-            "jsonrpc": "2.0",
-            "id": id,
-            "method": method,
-            "params": (try? JSONSerialization.jsonObject(with: paramsData)) ?? [:]
-        ]
-        guard let reqData = try? JSONSerialization.data(withJSONObject: envelope) else {
-            return Data("{\"error\":\"encode failed\"}".utf8)
-        }
-        return RawSocketSender.send(reqData, to: socketPath)
+private func forwardRaw(
+    method: String, paramsData: Data, socketPath: String, token: String?
+) -> Data {
+    let id = UUID().uuidString
+    var envelope: [String: Any] = [
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": method,
+        "params": (try? JSONSerialization.jsonObject(with: paramsData)) ?? [:]
+    ]
+    if let token { envelope["auth"] = ["token": token] }
+    guard let reqData = try? JSONSerialization.data(withJSONObject: envelope) else {
+        return Data("{\"error\":\"encode failed\"}".utf8)
     }
+    return RawSocketSender.send(reqData, to: socketPath)
 }
 
 enum RawSocketSender {
