@@ -4,7 +4,7 @@ public enum IntentError: Error, Equatable {
     case alreadyClosed
 }
 
-public struct Intent {
+public struct Intent: Equatable {
     public enum Status: Equatable {
         case active
         case closed(reason: String)

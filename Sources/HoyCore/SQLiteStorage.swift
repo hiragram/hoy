@@ -27,6 +27,21 @@ public final class SQLiteStorage {
         CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY
         );
+        """,
+        // v2: intents
+        """
+        CREATE TABLE intents (
+            id TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL,
+            closed_reason TEXT,
+            parent_id TEXT,
+            PRIMARY KEY (id, version)
+        );
+        CREATE INDEX idx_intents_id ON intents(id);
+        CREATE INDEX idx_intents_parent ON intents(parent_id);
         """
     ]
 
