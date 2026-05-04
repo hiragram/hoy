@@ -147,6 +147,15 @@ public final class Dispatcher: @unchecked Sendable {
                 }
                 let closed = try current.close(reason: params.reason)
                 try self.workspace.intents.save(closed)
+
+                // ADR 0024: 未完了 Task は cascade close
+                let openStatuses: Set<HoyTask.Status> = [.open, .claimed, .inProgress]
+                for task in try self.workspace.tasks.list(intentId: closed.id) {
+                    if openStatuses.contains(task.status) {
+                        try self.workspace.tasks.save(task.cascadeClose())
+                    }
+                }
+
                 self.audit("intent.close", by: actor, payload: [
                     "intentId": closed.id, "reason": params.reason
                 ])

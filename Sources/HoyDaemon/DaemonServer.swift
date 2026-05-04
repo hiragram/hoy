@@ -11,6 +11,8 @@ public final class DaemonServer: @unchecked Sendable {
     private let dispatcher: Dispatcher
     private let server: UnixSocketServer
     private let actor: PrincipalRef
+    private var purgeThread: Thread?
+    private var running = false
 
     public init(workspace: Workspace, socketPath: String, actor: PrincipalRef) {
         self.workspace = workspace
@@ -26,9 +28,25 @@ public final class DaemonServer: @unchecked Sendable {
         try server.start { data in
             return dispatcher.handle(requestData: data, actor: actor)
         }
+        running = true
+        startPurgeLoop()
     }
 
     public func stop() {
+        running = false
         server.stop()
+    }
+
+    private func startPurgeLoop() {
+        let workspace = self.workspace
+        let t = Thread { [weak self] in
+            while self?.running == true {
+                Thread.sleep(forTimeInterval: 5)
+                _ = try? workspace.claims.purgeExpired(now: Date())
+            }
+        }
+        t.name = "hoy-purge"
+        purgeThread = t
+        t.start()
     }
 }

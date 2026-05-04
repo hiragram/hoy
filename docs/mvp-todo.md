@@ -44,7 +44,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `status`: `open / claimed / in_progress / completed / reverted / closed`(型として定義済、遷移は順次実装)
 - [x] `depends_on: [IntentRef@version]` を保持(ADR 0018)
 - [x] `completed → reverted` 遷移を一級操作で持つ(ADR 0034)
-- [ ] Intent close 時に未完了 Task は cascade close(ADR 0024)(サービス層で実装)
+- [x] Intent close 時に未完了 Task は cascade close(ADR 0024、Dispatcher の intent.close で実装)
 
 ### 1.3 VerificationCheck
 
@@ -168,9 +168,9 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 5.3 バックグラウンドジョブ
 
-- [ ] claim ハートビート期限切れ監視(タイマーで purgeExpired を回す)
+- [x] claim ハートビート期限切れ監視(DaemonServer の purgeLoop が 5 秒間隔で purgeExpired)
 - [ ] 検証経路実行ワーカー(現状は同期実行、将来は非同期化)
-- [ ] hook 起動(ADR 0016 の agent-dispatch.sh)
+- [x] hook 起動(HookRunner、ADR 0016。task.completed/reverted で `<root>/hooks/<event>.sh` を invoke)
 
 ---
 

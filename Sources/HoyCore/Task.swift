@@ -7,7 +7,7 @@ public enum HoyTaskError: Error, Equatable {
 
 // Swift 並行性の `Task` と衝突するので `HoyTask` で定義する。
 public struct HoyTask: Equatable {
-    public enum Status: String, Equatable {
+    public enum Status: String, Equatable, Hashable {
         case open
         case claimed
         case inProgress
@@ -55,6 +55,11 @@ public struct HoyTask: Equatable {
     public func revert() throws -> HoyTask {
         guard status == .completed else { throw HoyTaskError.invalidTransition }
         return with(status: .reverted, completedSha: completedSha)
+    }
+
+    /// ADR 0024: Intent close 時の cascade close。任意の状態から closed に遷移可能。
+    public func cascadeClose() -> HoyTask {
+        return with(status: .closed, completedSha: completedSha)
     }
 
     private func with(status: Status, completedSha: String?) -> HoyTask {

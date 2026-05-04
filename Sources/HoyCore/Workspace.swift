@@ -12,6 +12,7 @@ public final class Workspace {
     public let principals: PrincipalRepository
     public let sessions: SessionRepository
     public let audit: AuditLogRepository
+    public let hooks: HookRunner
 
     private init(
         root: String,
@@ -27,6 +28,7 @@ public final class Workspace {
         self.principals = PrincipalRepository(storage: storage)
         self.sessions = SessionRepository(storage: storage)
         self.audit = AuditLogRepository(storage: storage)
+        self.hooks = HookRunner(workspaceRoot: root)
     }
 
     public static func open(at root: String) throws -> Workspace {

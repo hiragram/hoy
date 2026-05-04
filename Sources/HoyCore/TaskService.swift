@@ -42,6 +42,9 @@ public final class TaskService {
             ],
             now: now
         ))
+        workspace.hooks.fire(event: "task.completed", payload: [
+            "taskId": task.id, "intentId": task.intentId, "sha": sha
+        ])
         return CompletionResult(task: completed, sha: sha)
     }
 
@@ -76,6 +79,10 @@ public final class TaskService {
             ],
             now: now
         ))
+        workspace.hooks.fire(event: "task.reverted", payload: [
+            "taskId": task.id, "intentId": task.intentId,
+            "originalSha": originalSha, "revertSha": revertSha
+        ])
         return RevertResult(task: reverted, revertSha: revertSha)
     }
 }
