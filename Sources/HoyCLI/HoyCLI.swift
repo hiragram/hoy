@@ -48,8 +48,12 @@ struct DaemonCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "daemon",
         abstract: "daemon の起動・停止",
-        subcommands: [Start.self]
+        subcommands: [Start.self, Stop.self, Status.self]
     )
+
+    static func pidFilePath(root: String) -> String {
+        return (root as NSString).appendingPathComponent("daemon.pid")
+    }
 
     struct Start: ParsableCommand {
         static let configuration = CommandConfiguration(commandName: "start", abstract: "daemon を起動 (フォアグラウンド)")
@@ -68,9 +72,62 @@ struct DaemonCommand: ParsableCommand {
                 actor: actor
             )
             try server.start()
-            FileHandle.standardError.write(Data("hoy daemon started: socket=\(options.socketPath)\n".utf8))
-            // 永続的にブロック
+
+            let pid = ProcessInfo.processInfo.processIdentifier
+            let pidPath = DaemonCommand.pidFilePath(root: options.rootPath)
+            try "\(pid)\n".write(toFile: pidPath, atomically: true, encoding: .utf8)
+
+            // SIGTERM で graceful shutdown
+            let sigsrc = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+            sigsrc.setEventHandler {
+                server.stop()
+                try? FileManager.default.removeItem(atPath: pidPath)
+                Foundation.exit(0)
+            }
+            sigsrc.resume()
+            signal(SIGTERM, SIG_IGN)
+
+            FileHandle.standardError.write(Data("hoy daemon started: pid=\(pid) socket=\(options.socketPath)\n".utf8))
             dispatchMain()
+        }
+    }
+
+    struct Stop: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "stop", abstract: "起動中の daemon を停止")
+
+        @OptionGroup var options: GlobalOptions
+
+        func run() throws {
+            let pidPath = DaemonCommand.pidFilePath(root: options.rootPath)
+            guard let raw = try? String(contentsOfFile: pidPath, encoding: .utf8),
+                  let pid = pid_t(raw.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                print("daemon が起動していません (pid file なし)")
+                throw ExitCode(1)
+            }
+            if kill(pid, SIGTERM) != 0 {
+                print("kill failed errno=\(errno)")
+                throw ExitCode(1)
+            }
+            print("stopped: pid=\(pid)")
+        }
+    }
+
+    struct Status: ParsableCommand {
+        static let configuration = CommandConfiguration(commandName: "status", abstract: "daemon の生存確認")
+
+        @OptionGroup var options: GlobalOptions
+
+        func run() throws {
+            let pidPath = DaemonCommand.pidFilePath(root: options.rootPath)
+            if let raw = try? String(contentsOfFile: pidPath, encoding: .utf8),
+               let pid = pid_t(raw.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                if kill(pid, 0) == 0 {
+                    print("running: pid=\(pid) socket=\(options.socketPath)")
+                    return
+                }
+            }
+            print("not running")
+            throw ExitCode(1)
         }
     }
 }
