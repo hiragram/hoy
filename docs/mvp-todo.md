@@ -89,10 +89,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 2.2 Git ストレージ
 
-- [ ] daemon 内部リポジトリの初期化(`~/.hoy/<workspace>/repo.git`)
-- [ ] `git` subprocess 実行ラッパー(ADR 0036、stdout/stderr/exit を構造化)
-- [ ] Task 完了時のコミット作成(ADR 0014)
-- [ ] revert 操作(ADR 0034、裏で `git revert`)
+- [x] daemon 内部リポジトリの初期化(Git.initIfNeeded)
+- [x] `git` subprocess 実行ラッパー(ADR 0036、stdout/stderr/exit を構造化)
+- [x] Task 完了時のコミット作成(Git.commitAll、ADR 0014)
+- [x] revert 操作(Git.revert、ADR 0034)
 - [ ] rebase 操作(ADR 0017)
 
 ### 2.3 統合 Repository
