@@ -71,8 +71,8 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.6 AuditEntry
 
-- [ ] `AuditEntry` 値型: `timestamp / actor / op / payload`(ADR 0027)
-- [ ] append-only な性質を型レベルで担保(mutating な操作を生やさない)
+- [x] `AuditEntry` 値型: `timestamp / actor / op / payload`(ADR 0027)
+- [x] append-only な性質を型レベルで担保(mutating な操作を生やさない)
 
 ---
 
