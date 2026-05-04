@@ -24,6 +24,12 @@ enum DashboardHTML {
   header .toggle { color: var(--muted); font-size: 12px; cursor: pointer;
                    user-select: none; }
   header .toggle input { vertical-align: middle; margin-right: 4px; }
+  header input[type=search] { background: var(--card); color: var(--fg);
+                              border: 1px solid var(--line); border-radius: 3px;
+                              padding: 4px 8px; font: inherit; font-size: 12px;
+                              width: 200px; }
+  header input[type=search]::placeholder { color: var(--muted); }
+  .hidden { display: none !important; }
   .container { max-width: 1100px; margin: 0 auto; padding: 16px 20px;
                display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
   .left { min-width: 0; }
@@ -137,6 +143,7 @@ enum DashboardHTML {
   <span class="stat"><span class="num" id="stat-claims">0</span> claims</span>
   <span class="stat"><span class="num" id="stat-worktrees">0</span> worktrees</span>
   <label class="toggle" style="margin-left: 16px"><input type="checkbox" id="show-closed"> show closed</label>
+  <input type="search" id="search" placeholder="filter intents / tasks…">
   <span class="meta" id="ts" style="margin-left:auto">—</span>
   <span class="meta" id="status">connecting…</span>
   <span class="meta" id="event-status">events: —</span>
@@ -188,20 +195,33 @@ function nowHHMMSS() {
 }
 
 // === state rendering ===
+let lastClaims = [];
 function renderClaims(claims) {
+  lastClaims = claims;
   const el = $('claims');
   if (!claims.length) { el.className = 'empty'; el.textContent = 'なし'; return; }
   el.className = '';
-  const now = Date.now() / 1000;
   el.innerHTML = claims.map(c => {
-    const remain = Math.max(0, Math.round(c.expiresAt - now));
     return `<div class="claim">
-      <span class="ttl">残り ${remain}s</span>
+      <span class="ttl" data-expires="${c.expiresAt}">残り —s</span>
       <span class="who">${esc(c.principal.id)}</span>
-      <span class="target">→ ${shortId(c.targetIntentId)}</span>
+      <span class="target clickable" onclick="event.stopPropagation();showIntent('${c.targetIntentId}')">→ ${shortId(c.targetIntentId)}</span>
     </div>`;
   }).join('');
+  updateTTLs();
 }
+function updateTTLs() {
+  const now = Date.now() / 1000;
+  document.querySelectorAll('.ttl').forEach(el => {
+    const exp = parseFloat(el.dataset.expires);
+    const remain = Math.max(0, Math.round(exp - now));
+    el.textContent = `残り ${remain}s`;
+    if (remain <= 10) el.style.color = 'var(--bad)';
+    else if (remain <= 60) el.style.color = 'var(--warn)';
+    else el.style.color = '';
+  });
+}
+setInterval(updateTTLs, 1000);
 
 let flashTaskId = null;
 const intentMap = {};   // id -> intent (with full body/children/etc)
@@ -504,6 +524,16 @@ $('show-closed').addEventListener('change', e => {
   showClosed = e.target.checked;
   localStorage.setItem('hoy.showClosed', showClosed);
   refreshState();
+});
+
+// search: title 部分一致でツリーをフィルタ。jQuery 的に DOM を非表示にする。
+$('search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('.intent').forEach(el => {
+    if (!q) { el.classList.remove('hidden'); return; }
+    const text = el.textContent.toLowerCase();
+    el.classList.toggle('hidden', !text.includes(q));
+  });
 });
 refreshState();
 connectEvents();
