@@ -16,7 +16,7 @@ struct UnixSocketServerTests {
     @Test func echo_roundTrip() throws {
         let path = socketPath()
         let server = UnixSocketServer(path: path)
-        try server.start { req in
+        try server.start { req, _ in
             // echo
             var resp = Data("echo: ".utf8)
             resp.append(req)
@@ -32,7 +32,7 @@ struct UnixSocketServerTests {
     @Test func socketFile_hasRestrictivePermissions() throws {
         let path = socketPath()
         let server = UnixSocketServer(path: path)
-        try server.start { _ in Data() }
+        try server.start { _, _ in Data() }
         defer { server.stop() }
 
         var st = stat()

@@ -21,6 +21,7 @@ public struct HoyApp: ParsableCommand {
             BackupCommand.self,
             RestoreCommand.self,
             AuthCommand.self,
+            EventsCommand.self,
         ]
     )
 
@@ -510,6 +511,37 @@ struct ClaimCommand: ParsableCommand {
             )
             emit(result.claim, json: options.json) {
                 print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
+            }
+        }
+    }
+}
+
+// MARK: - events
+
+struct EventsCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "events",
+        abstract: "daemon からのイベントを購読",
+        subcommands: [Subscribe.self]
+    )
+
+    struct Subscribe: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "subscribe",
+            abstract: "task.completed / task.reverted などを stream で受信"
+        )
+
+        @OptionGroup var options: GlobalOptions
+        @Option(help: "method 名を絞り込む (カンマ区切り)") var methods: String?
+
+        func run() throws {
+            let client = options.makeClient()
+            let filter = methods?.split(separator: ",").map { String($0) }
+            FileHandle.standardError.write(Data("subscribed. press Ctrl-C to stop.\n".utf8))
+            try client.subscribe(methods: filter) { line in
+                FileHandle.standardOutput.write(line)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+                return true
             }
         }
     }

@@ -286,6 +286,20 @@ public enum Methods {
         }
     }
 
+    // MARK: - events
+
+    public enum EventsSubscribe: RPCMethod {
+        public static let name = "events.subscribe"
+        public struct Params: Codable, Sendable, Equatable {
+            public let methods: [String]?  // nil = all
+            public init(methods: [String]? = nil) { self.methods = methods }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let subscribed: [String]?
+            public init(subscribed: [String]?) { self.subscribed = subscribed }
+        }
+    }
+
     // MARK: - claim
 
     public enum ClaimAcquire: RPCMethod {

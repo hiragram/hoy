@@ -23,12 +23,48 @@ public enum UnixSocketServerError: Error, CustomStringConvertible {
     }
 }
 
-/// 1リクエスト = 1コネクション の同期 Unix domain socket サーバ。
-/// クライアントは JSON-RPC リクエストを 1 行 (改行終端) で送り、
-/// サーバは 1 行で応答してコネクションを閉じる。MVP の最小実装。
+/// 永続接続対応の Unix domain socket サーバ。
+/// クライアントは改行終端の JSON-RPC リクエストを連続して送れる。
+/// 各リクエストには ConnectionContext が渡され、サーバから client への
+/// 非同期 push (events 等) も同じ socket に書き出せる。
 /// ADR 0039: パーミッション 0600 で保護する。
 public final class UnixSocketServer {
-    public typealias Handler = @Sendable (Data) -> Data
+    public typealias Handler = @Sendable (Data, ConnectionContext) -> Data
+
+    /// 1 接続を表す。複数スレッドから write される可能性があるので lock で同期。
+    public final class ConnectionContext: @unchecked Sendable {
+        let fd: Int32
+        private let writeLock = NSLock()
+        private var cleanups: [() -> Void] = []
+        private let cleanupLock = NSLock()
+        private var closed = false
+
+        init(fd: Int32) { self.fd = fd }
+
+        public func write(_ data: Data) {
+            writeLock.lock(); defer { writeLock.unlock() }
+            if closed { return }
+            var d = data
+            if d.last != 0x0A { d.append(0x0A) }
+            d.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+                _ = Darwin.write(fd, raw.baseAddress, d.count)
+            }
+        }
+
+        public func addCleanup(_ f: @escaping () -> Void) {
+            cleanupLock.lock(); defer { cleanupLock.unlock() }
+            cleanups.append(f)
+        }
+
+        func performCleanup() {
+            cleanupLock.lock()
+            let toRun = cleanups
+            cleanups.removeAll()
+            cleanupLock.unlock()
+            for f in toRun { f() }
+            writeLock.lock(); closed = true; writeLock.unlock()
+        }
+    }
 
     private let path: String
     private var listenFd: Int32 = -1
@@ -108,26 +144,43 @@ public final class UnixSocketServer {
                 if !running { break }
                 continue
             }
-            handleClient(fd: client, handler: handler)
+            // クライアントごとに別スレッドで処理する。
+            // events.subscribe のような長寿命接続で他クライアントを
+            // ブロックしないようにする。
+            let t = Thread { [weak self] in
+                self?.handleClient(fd: client, handler: handler)
+            }
+            t.name = "hoy-conn-\(client)"
+            t.start()
         }
     }
 
     private func handleClient(fd: Int32, handler: @escaping Handler) {
-        defer { close(fd) }
-        // 改行終端で 1 メッセージ読む。MVP 簡易実装。
-        var buffer = Data()
-        var byte: UInt8 = 0
-        while true {
-            let n = read(fd, &byte, 1)
-            if n <= 0 { return }
-            if byte == 0x0A { break }
-            buffer.append(byte)
+        let ctx = ConnectionContext(fd: fd)
+        defer {
+            ctx.performCleanup()
+            close(fd)
         }
-        let response = handler(buffer)
-        var out = response
-        out.append(0x0A)
-        out.withUnsafeBytes { raw in
-            _ = write(fd, raw.baseAddress, out.count)
+        while true {
+            var buffer = Data()
+            var byte: UInt8 = 0
+            var sawAnyByte = false
+            while true {
+                let n = read(fd, &byte, 1)
+                if n <= 0 {
+                    if !sawAnyByte { return }
+                    break
+                }
+                sawAnyByte = true
+                if byte == 0x0A { break }
+                buffer.append(byte)
+            }
+            if buffer.isEmpty && !sawAnyByte { return }
+            let response = handler(buffer, ctx)
+            if !response.isEmpty {
+                ctx.write(response)
+            }
         }
     }
 }
+

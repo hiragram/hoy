@@ -145,7 +145,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] イベントスキーマ(EventEnvelope、ADR 0016)
 - [x] `task.completed / verification.failed / claim.expired` を初期定義
 - [ ] `conflict.detected`(統合コンフリクトを実装する Phase 3.2 の続きで追加)
-- [ ] サブスクリプション機構(daemon 接続上での push、Phase 5.2)
+- [x] サブスクリプション機構(UnixSocketServer を永続接続化、ConnectionContext で非同期 write、per-connection thread)
 
 ---
 
@@ -164,7 +164,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] HoyProtocol メソッドを HoyCore に dispatch(intent/task/verification/claim)
 - [x] エラー応答の整備(parseError / methodNotFound / invalidParams / notFound / conflict / invalidState)
 - [x] リクエストごとのトレースログ(`<root>/daemon.log` に追記)
-- [ ] イベント push (task.completed 等の subscription)
+- [x] イベント push (events.subscribe / task.completed / task.reverted を JSON-RPC notification で配送、CLI: `hoy events subscribe`)
 
 ### 5.3 バックグラウンドジョブ
 

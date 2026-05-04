@@ -57,6 +57,55 @@ public struct RPCClient {
         return try sendOnce(payload)
     }
 
+    /// 永続接続を開いて events.subscribe を送り、受信したイベントを `onEvent` に渡す。
+    /// EOF または onEvent が false を返したら接続を閉じて return。
+    public func subscribe(
+        methods: [String]? = nil,
+        onEvent: (Data) -> Bool
+    ) throws {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        if fd < 0 { throw RPCClientError.connectFailed(errno) }
+        defer { close(fd) }
+
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let bytes = Array(socketPath.utf8)
+        withUnsafeMutableBytes(of: &addr.sun_path) { buf in
+            for (i, b) in bytes.enumerated() where i < buf.count { buf[i] = b }
+        }
+        let addrLen = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let rc = withUnsafePointer(to: &addr) { ptr -> Int32 in
+            ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                connect(fd, sa, addrLen)
+            }
+        }
+        if rc != 0 { throw RPCClientError.connectFailed(errno) }
+
+        let req = RPCRequest(
+            id: UUID().uuidString,
+            method: Methods.EventsSubscribe.name,
+            params: Methods.EventsSubscribe.Params(methods: methods),
+            auth: token.map { AuthInfo(token: $0) }
+        )
+        var data = try JSONEncoder().encode(req)
+        data.append(0x0A)
+        _ = data.withUnsafeBytes { raw in write(fd, raw.baseAddress, data.count) }
+
+        // 改行区切りで読み続ける
+        var buffer = Data()
+        var byte: UInt8 = 0
+        while true {
+            let n = read(fd, &byte, 1)
+            if n <= 0 { return }
+            if byte == 0x0A {
+                if !onEvent(buffer) { return }
+                buffer.removeAll(keepingCapacity: true)
+            } else {
+                buffer.append(byte)
+            }
+        }
+    }
+
     private func sendOnce(_ payload: Data) throws -> Data {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         if fd < 0 { throw RPCClientError.connectFailed(errno) }

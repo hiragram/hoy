@@ -13,11 +13,19 @@ public final class Dispatcher: @unchecked Sendable {
     private let workspace: Workspace
     private let taskService: TaskService
     private let verificationRunner: VerificationRunner
+    public let events: EventBus
 
-    public init(workspace: Workspace) {
+    public init(workspace: Workspace, events: EventBus = EventBus()) {
         self.workspace = workspace
         self.taskService = TaskService(workspace: workspace)
         self.verificationRunner = VerificationRunner(workspace: workspace)
+        self.events = events
+    }
+
+    private func publishEvent(_ name: String, payload: [String: String]) {
+        let body: [String: Any] = ["jsonrpc": "2.0", "method": name, "params": payload]
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return }
+        events.publish(event: name, payload: data)
     }
 
     private func trace(method: String, requestId: String, actor: PrincipalRef, error: String? = nil) {
@@ -46,7 +54,11 @@ public final class Dispatcher: @unchecked Sendable {
     /// 1 リクエスト分の JSON Data を処理し、レスポンスの JSON Data を返す。
     /// `defaultActor` は token が付いていないリクエストの fallback。
     /// auth.token があれば SessionRepository で解決して上書きする。
-    public func handle(requestData: Data, actor defaultActor: PrincipalRef) -> Data {
+    public func handle(
+        requestData: Data,
+        actor defaultActor: PrincipalRef,
+        connection: UnixSocketServer.ConnectionContext? = nil
+    ) -> Data {
         let decoder = JSONDecoder()
         let encoder = JSONEncoder()
 
@@ -91,6 +103,7 @@ public final class Dispatcher: @unchecked Sendable {
                 requestData: requestData,
                 requestId: header.id,
                 actor: actor,
+                connection: connection,
                 decoder: decoder,
                 encoder: encoder
             )
@@ -119,10 +132,31 @@ public final class Dispatcher: @unchecked Sendable {
         requestData: Data,
         requestId: String,
         actor: PrincipalRef,
+        connection: UnixSocketServer.ConnectionContext?,
         decoder: JSONDecoder,
         encoder: JSONEncoder
     ) throws -> Data {
         switch method {
+        case Methods.EventsSubscribe.name:
+            return try handle(
+                Methods.EventsSubscribe.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                guard let conn = connection else {
+                    throw makeRPCError(
+                        code: RPCErrorCode.invalidState,
+                        "events.subscribe requires a persistent connection"
+                    )
+                }
+                let filter: Set<String>? = params.methods.map { Set($0) }
+                let bus = self.events
+                let subId = bus.subscribe(filter: filter) { _, payload in
+                    conn.write(payload)
+                }
+                conn.addCleanup { bus.unsubscribe(id: subId) }
+                return Methods.EventsSubscribe.Result(subscribed: params.methods)
+            }
+
         case Methods.IntentCreate.name:
             return try handle(
                 Methods.IntentCreate.self, data: requestData, id: requestId,
@@ -277,6 +311,11 @@ public final class Dispatcher: @unchecked Sendable {
                 let result = try self.taskService.complete(
                     task: task, by: actor, commitChanges: params.commit ?? true
                 )
+                self.publishEvent(EventName.taskCompleted, payload: [
+                    "taskId": result.task.id,
+                    "intentId": result.task.intentId,
+                    "sha": result.sha
+                ])
                 return Methods.TaskComplete.Result(
                     task: DTOMapper.toDTO(result.task),
                     sha: result.sha
@@ -300,6 +339,11 @@ public final class Dispatcher: @unchecked Sendable {
                 decoder: decoder, encoder: encoder
             ) { params in
                 let result = try self.taskService.revert(taskId: params.id, by: actor)
+                self.publishEvent(EventName.taskReverted, payload: [
+                    "taskId": result.task.id,
+                    "intentId": result.task.intentId,
+                    "revertSha": result.revertSha
+                ])
                 return Methods.TaskRevert.Result(
                     task: DTOMapper.toDTO(result.task),
                     revertSha: result.revertSha

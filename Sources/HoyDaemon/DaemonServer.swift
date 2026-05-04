@@ -25,8 +25,8 @@ public final class DaemonServer: @unchecked Sendable {
     public func start() throws {
         let dispatcher = self.dispatcher
         let actor = self.actor
-        try server.start { data in
-            return dispatcher.handle(requestData: data, actor: actor)
+        try server.start { data, ctx in
+            return dispatcher.handle(requestData: data, actor: actor, connection: ctx)
         }
         running = true
         startPurgeLoop()
