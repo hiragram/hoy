@@ -3,6 +3,7 @@ import ArgumentParser
 import HoyCore
 import HoyDaemon
 import HoyProtocol
+import HoyMCP
 
 public struct HoyApp: ParsableCommand {
     public static let configuration = CommandConfiguration(
@@ -15,6 +16,7 @@ public struct HoyApp: ParsableCommand {
             TaskCommand.self,
             VerificationCommand.self,
             ClaimCommand.self,
+            MCPCommand.self,
         ]
     )
 
@@ -390,6 +392,52 @@ struct ClaimCommand: ParsableCommand {
             )
             print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
         }
+    }
+}
+
+// MARK: - mcp
+
+struct MCPCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "mcp",
+        abstract: "MCP サーバを stdio モードで起動 (daemon に中継)"
+    )
+
+    @OptionGroup var options: GlobalOptions
+
+    func run() throws {
+        let client = RPCClient(socketPath: options.socketPath)
+        let server = MCPServer(tools: HoyTools.all()) { toolName, argsData in
+            guard let method = HoyTools.mapToolNameToRPCMethod(toolName) else {
+                return Data("{\"error\":\"unknown tool: \(toolName)\"}".utf8)
+            }
+            // tools/call は arguments を hoy method の params としてそのまま転送する。
+            // RPCClient の薄いラッパは不要 — 直接 socket に投げる。
+            return forwardRaw(method: method, paramsData: argsData, socketPath: client.socketPath)
+        }
+        server.run()
+    }
+
+    private func forwardRaw(method: String, paramsData: Data, socketPath: String) -> Data {
+        // RPCRequest envelope を組み立てる
+        let id = UUID().uuidString
+        let envelope: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": (try? JSONSerialization.jsonObject(with: paramsData)) ?? [:]
+        ]
+        guard let reqData = try? JSONSerialization.data(withJSONObject: envelope) else {
+            return Data("{\"error\":\"encode failed\"}".utf8)
+        }
+        return RawSocketSender.send(reqData, to: socketPath)
+    }
+}
+
+enum RawSocketSender {
+    static func send(_ payload: Data, to path: String) -> Data {
+        let client = RPCClient(socketPath: path)
+        return (try? client.rawSend(payload)) ?? Data("{\"error\":\"socket failed\"}".utf8)
     }
 }
 

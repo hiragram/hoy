@@ -48,6 +48,12 @@ public struct RPCClient {
         return result
     }
 
+    /// 任意の JSON-RPC ペイロードを 1 リクエストとして送信し、レスポンス Data を返す。
+    /// MCP 等、汎用転送に使う。
+    public func rawSend(_ payload: Data) throws -> Data {
+        return try sendOnce(payload)
+    }
+
     private func sendOnce(_ payload: Data) throws -> Data {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         if fd < 0 { throw RPCClientError.connectFailed(errno) }

@@ -36,6 +36,7 @@ let package = Package(
                 "HoyProtocol",
                 "HoyDaemon",
                 "HoyCore",
+                "HoyMCP",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),

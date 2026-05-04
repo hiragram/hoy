@@ -190,9 +190,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 6.2 MCP サーバ
 
-- [ ] `hoy mcp` サブコマンドで stdio mode 起動
-- [ ] HoyProtocol のメソッドを MCP ツールとして公開
-- [ ] daemon への JSON-RPC 中継
+- [x] `hoy mcp` サブコマンドで stdio mode 起動
+- [x] HoyProtocol のメソッドを MCP ツールとして公開(HoyTools.all)
+- [x] daemon への JSON-RPC 中継(RPCClient.rawSend)
+- [x] initialize / tools/list / tools/call の最小ハンドリング
 
 ---
 
