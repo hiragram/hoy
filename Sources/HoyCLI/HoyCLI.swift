@@ -23,6 +23,7 @@ public struct HoyApp: ParsableCommand {
             AuthCommand.self,
             EventsCommand.self,
             StatusCommand.self,
+            DashboardCommand.self,
         ]
     )
 
@@ -536,6 +537,29 @@ struct ClaimCommand: ParsableCommand {
                 print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
             }
         }
+    }
+}
+
+// MARK: - dashboard
+
+struct DashboardCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "dashboard",
+        abstract: "ブラウザで眺める Web ダッシュボードを起動 (127.0.0.1)"
+    )
+
+    @OptionGroup var options: GlobalOptions
+    @Option(help: "listen ポート") var port: Int = 8765
+
+    func run() throws {
+        let server = DashboardServer(
+            port: port,
+            rpc: options.makeClient(),
+            rootPath: options.rootPath
+        )
+        try server.start()
+        FileHandle.standardError.write(Data("hoy dashboard: http://127.0.0.1:\(port)/  (root=\(options.rootPath))\n".utf8))
+        dispatchMain()
     }
 }
 

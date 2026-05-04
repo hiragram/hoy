@@ -138,6 +138,7 @@ hoy mcp <<<'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 | `hoy auth login \| logout \| whoami` | Issue/revoke a session token (ADR 0025) |
 | `hoy events subscribe` | Stream daemon events (`task.completed` etc.) over the socket |
 | `hoy status [--watch]` | Tree view of intents, tasks and active claims; `--watch` redraws on events |
+| `hoy dashboard [--port N]` | Browser dashboard at `http://127.0.0.1:N/` (default 8765) |
 | `hoy mcp` | Run as an MCP stdio server, bridging to the daemon |
 
 Every subcommand follows a consistent argument convention (see [ADR 0043](docs/decisions/0043-cli-argument-convention.md)):

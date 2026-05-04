@@ -24,7 +24,7 @@ public enum RPCClientError: Error, CustomStringConvertible {
     }
 }
 
-public struct RPCClient {
+public struct RPCClient: Sendable {
     public let socketPath: String
     public let token: String?
 
