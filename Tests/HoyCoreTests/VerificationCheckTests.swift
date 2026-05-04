@@ -48,11 +48,26 @@ struct VerificationCheckTests {
         #expect(waived.status == .waived(reason: "low risk", by: approver))
     }
 
-    @Test func waiveAlreadyPassedThrows() throws {
+    // passed からの waive は許可 (二重 waive のみ拒否)
+    @Test func waiveFromPassedAllowed() throws {
         let check = VerificationCheck.automated(category: "unittest", command: "swift test")
         let passed = try check.markPassed(evidence: "ok")
+        let waived = try passed.waive(reason: "drop this requirement", by: approver)
+        #expect(waived.status == .waived(reason: "drop this requirement", by: approver))
+    }
+
+    @Test func waiveFromFailedAllowed() throws {
+        let check = VerificationCheck.automated(category: "unittest", command: "swift test")
+        let failed = try check.markFailed(evidence: "boom")
+        let waived = try failed.waive(reason: "investigated, false positive", by: approver)
+        #expect(waived.status == .waived(reason: "investigated, false positive", by: approver))
+    }
+
+    @Test func doubleWaiveRejected() throws {
+        let check = VerificationCheck.human(category: "ux", instruction: "x")
+        let waived = try check.waive(reason: "first", by: approver)
         #expect(throws: VerificationCheckError.invalidTransition) {
-            try passed.waive(reason: "x", by: approver)
+            try waived.waive(reason: "second", by: approver)
         }
     }
 }

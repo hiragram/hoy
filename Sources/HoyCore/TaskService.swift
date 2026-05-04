@@ -4,6 +4,7 @@ public enum TaskServiceError: Error, Equatable {
     case taskNotFound(String)
     case noCompletedShaToRevert
     case integrationConflict(stderr: String)
+    case nothingToCommit
 }
 
 // ADR 0014: Task 完了時の即時統合。
@@ -45,13 +46,24 @@ public final class TaskService {
         bypassVerifications: Bool = false,
         now: Date = Date()
     ) throws -> CompletionResult {
+        // 検証経路 gate を先に確認 (commit や worktree 操作より前に弾く)
+        if !bypassVerifications {
+            guard VerificationGate.allRequiredSatisfied(in: task.verifications) else {
+                throw HoyTaskError.verificationsNotSatisfied
+            }
+        }
+
         let sha: String?
         if commitChanges {
             // worktree が無ければ作る (lazy)
             let wtPath = try ensureWorktree(forTask: task.id)
             let wtGit = Git(workdir: wtPath)
-            // worktree 内の変更を commit
-            _ = try wtGit.commitAll(message: "task: \(task.title)")
+            // worktree 内の変更を commit (空コミットは許さない)
+            do {
+                _ = try wtGit.commitAll(message: "task: \(task.title)", allowEmpty: false)
+            } catch GitError.nothingToCommit {
+                throw TaskServiceError.nothingToCommit
+            }
             // main に rebase + ff 統合
             do {
                 sha = try workspace.worktrees.integrate(taskId: task.id)

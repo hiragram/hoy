@@ -66,7 +66,12 @@ public struct VerificationCheck: Equatable {
     }
 
     public func waive(reason: String, by approver: PrincipalRef) throws -> VerificationCheck {
-        try requireNotTerminal()
+        // waive は「結果を承知して飛ばす」操作。passed/failed の terminal からも
+        // 許可する (例: failed をレビューして問題ないと判断したケース)。
+        // 同じ check を 2 度 waive することのみ拒否。
+        if case .waived = status {
+            throw VerificationCheckError.invalidTransition
+        }
         return with(status: .waived(reason: reason, by: approver), evidence: evidence)
     }
 

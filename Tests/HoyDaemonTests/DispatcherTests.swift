@@ -80,6 +80,20 @@ struct DispatcherTests {
         )
         let taskId = taskResp.result!.task.id
 
+        // worktree に何か書き込む (空コミット禁止のため)
+        let wsResp = try JSONDecoder().decode(
+            RPCResponse<Methods.TaskWorkspace.Result>.self,
+            from: d.handle(requestData: try encode(
+                method: Methods.TaskWorkspace.name,
+                params: Methods.TaskWorkspace.Params(id: taskId)
+            ), actor: actor)
+        )
+        let wt = wsResp.result!.path
+        try "hello".write(
+            toFile: (wt as NSString).appendingPathComponent("out.txt"),
+            atomically: true, encoding: .utf8
+        )
+
         // complete
         let completeResp = try JSONDecoder().decode(
             RPCResponse<Methods.TaskComplete.Result>.self,

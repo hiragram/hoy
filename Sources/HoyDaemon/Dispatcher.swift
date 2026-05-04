@@ -340,6 +340,11 @@ public final class Dispatcher: @unchecked Sendable {
                         code: RPCErrorCode.conflict,
                         "integration conflict: \(stderr)"
                     )
+                } catch TaskServiceError.nothingToCommit {
+                    throw makeRPCError(
+                        code: RPCErrorCode.invalidState,
+                        "no changes to commit. use --no-commit if metadata-only completion is intended."
+                    )
                 }
             }
 

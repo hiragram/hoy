@@ -11,6 +11,7 @@ public struct GitResult: Equatable, Sendable {
 public enum GitError: Error, Equatable {
     case nonZeroExit(args: [String], result: GitResult)
     case launchFailed(String)
+    case nothingToCommit
 }
 
 // ADR 0013, 0036: 内部 Git は subprocess 経由で操作する。
@@ -106,12 +107,22 @@ public final class Git: @unchecked Sendable {
         try runChecked(["commit", "--allow-empty", "-m", "init"])
     }
 
-    /// 作業ツリーをすべて add してコミット。空コミットは許可。
+    /// 作業ツリーをすべて add してコミット。
+    /// `allowEmpty = false` (デフォルト) のとき、変更が無ければ
+    /// `GitError.nothingToCommit` を投げる (空コミットを silent に作らない)。
     /// 戻り値はコミット SHA。add → commit → rev-parse をロック内で原子化。
     @discardableResult
-    public func commitAll(message: String, allowEmpty: Bool = true) throws -> String {
+    public func commitAll(message: String, allowEmpty: Bool = false) throws -> String {
         return try withLock {
             try runCheckedUnlocked(["add", "-A"])
+            // 何も staged されていなければ早期エラー
+            if !allowEmpty {
+                let diffCheck = try runUnlocked(["diff", "--cached", "--quiet"])
+                // exit 0 なら差分なし
+                if diffCheck.exitCode == 0 {
+                    throw GitError.nothingToCommit
+                }
+            }
             var args = ["commit", "-m", message]
             if allowEmpty { args.append("--allow-empty") }
             try runCheckedUnlocked(args)

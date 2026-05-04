@@ -16,6 +16,12 @@ struct ReconciliationTests {
         let svc = TaskService(workspace: ws)
         let task = HoyTask.create(intentId: "i", title: "x", createdBy: actor)
         try ws.tasks.save(task)
+        // worktree に書き込んでから complete (空コミット禁止のため)
+        let wt = try svc.ensureWorktree(forTask: task.id)
+        try "x".write(
+            toFile: (wt as NSString).appendingPathComponent("a.txt"),
+            atomically: true, encoding: .utf8
+        )
         _ = try svc.complete(task: task, by: actor)
 
         let report = try Reconciliation(workspace: ws).check()
