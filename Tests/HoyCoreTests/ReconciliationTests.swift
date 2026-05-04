@@ -39,6 +39,26 @@ struct ReconciliationTests {
 struct BackupTests {
     private let actor = PrincipalRef(id: "agent-1", kind: .agent)
 
+    @Test func restore_recreatesDbAndRepo() throws {
+        let actor = PrincipalRef(id: "u", kind: .human)
+        let root = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("hoy-rs-\(UUID().uuidString)")
+        let ws = try Workspace.open(at: root)
+        let intent = Intent.create(title: "before backup")
+        try ws.intents.save(intent)
+
+        let dest = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("hoy-rs-dest-\(UUID().uuidString)")
+        let snap = try Backup(workspace: ws).snapshot(to: dest)
+
+        let target = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("hoy-rs-target-\(UUID().uuidString)")
+        try Backup.restore(from: snap, into: target)
+        let restored = try Workspace.open(at: target)
+        #expect(try restored.intents.latest(id: intent.id)?.title == "before backup")
+        _ = actor
+    }
+
     @Test func snapshot_copiesDbAndRepo() throws {
         let root = (NSTemporaryDirectory() as NSString)
             .appendingPathComponent("hoy-bk-\(UUID().uuidString)")

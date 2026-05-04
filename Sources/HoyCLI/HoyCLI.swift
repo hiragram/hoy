@@ -19,6 +19,7 @@ public struct HoyApp: ParsableCommand {
             MCPCommand.self,
             ReconcileCommand.self,
             BackupCommand.self,
+            RestoreCommand.self,
         ]
     )
 
@@ -522,6 +523,21 @@ struct BackupCommand: ParsableCommand {
         let ws = try Workspace.open(at: options.rootPath)
         let path = try Backup(workspace: ws).snapshot(to: destination)
         print("snapshot: \(path)")
+    }
+}
+
+struct RestoreCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "restore",
+        abstract: "snapshot から root を復元 (daemon 停止中に実行)"
+    )
+
+    @OptionGroup var options: GlobalOptions
+    @Argument(help: "snapshot ディレクトリ") var snapshot: String
+
+    func run() throws {
+        try Backup.restore(from: snapshot, into: options.rootPath)
+        print("restored to \(options.rootPath)")
     }
 }
 

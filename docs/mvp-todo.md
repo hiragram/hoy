@@ -59,9 +59,9 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 ### 1.4 Claim
 
 - [x] `Claim(principalId, targetIntentId, expiresAt)` 値型
-- [ ] Intent 単位で 1 Principal が排他(ADR 0009)(Phase 3.1 ClaimRegistry で実装)
-- [ ] 親と子は独立に claim 可能(ADR 0010)(Phase 3.1 ClaimRegistry で実装)
-- [ ] 書き込み排他、読み取り自由(ADR 0012)(Phase 3.1 ClaimRegistry で実装)
+- [x] Intent 単位で 1 Principal が排他(ClaimRepository.acquire が target_intent_id 主キー、テスト済)
+- [x] 親と子は独立に claim 可能(target_intent_id ごとに独立、構造的に保証)
+- [x] 書き込み排他、読み取り自由(ADR 0012、claim は書き込み API 側でのみ要求する設計)
 
 ### 1.5 Principal / Session
 
@@ -202,7 +202,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] 監査ログの append 書き出し(Dispatcher が intent.create/update/close、task.create、claim.acquire 等で記録。task.complete/revert は TaskService 内で記録)
 - [x] reconciliation コマンド(`hoy reconcile`、ADR 0035。MVP は missing sha 検出のみ)
 - [x] バックアップ(`hoy backup <dest>`、SQLite ファイル + Git リポジトリのコピー)
-- [ ] リストア(restore コマンドはまだ。手動で root を差し替えれば動く)
+- [x] リストア(`hoy restore <snapshot>`、Backup.restore)
 - [ ] エラー・パニック時のリカバリ動作(daemon 例外時の挙動を整備)
 
 ---
