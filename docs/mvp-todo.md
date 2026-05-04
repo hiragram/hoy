@@ -178,12 +178,15 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 6.1 CLI
 
-- [ ] `hoy daemon start / stop / status`
-- [ ] `hoy intent create / list / get / close`
-- [ ] `hoy task create / list / claim / complete / revert`
-- [ ] `hoy verification add / run / report / waive`
-- [ ] human readable と `--json` 出力の両対応
-- [ ] エラー表示の整備
+- [x] `hoy daemon start`(フォアグラウンド)
+- [ ] `hoy daemon stop / status`(常駐管理は Phase 7 と合わせて)
+- [x] `hoy intent create / get / update / close`(list は次)
+- [x] `hoy task create / get / complete / revert`(list は次)
+- [x] `hoy verification run / report / waive`(add は次)
+- [x] `hoy claim acquire / release / heartbeat`
+- [ ] `intent list` / `task list` / `verification add` を Dispatcher と同時に追加
+- [ ] human readable / `--json` 出力切替
+- [x] RPCClient のエラー表示(rpcError / connectFailed 等を整形)
 
 ### 6.2 MCP サーバ
 

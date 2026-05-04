@@ -7,6 +7,7 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
+        .executable(name: "hoy", targets: ["hoy"]),
         .library(name: "HoyCore", targets: ["HoyCore"]),
         .library(name: "HoyProtocol", targets: ["HoyProtocol"]),
         .library(name: "HoyDaemon", targets: ["HoyDaemon"]),
@@ -15,6 +16,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/stephencelis/SQLite.swift.git", from: "0.15.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],
     targets: [
         .target(
@@ -30,11 +32,20 @@ let package = Package(
         ),
         .target(
             name: "HoyCLI",
-            dependencies: ["HoyProtocol"]
+            dependencies: [
+                "HoyProtocol",
+                "HoyDaemon",
+                "HoyCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
         ),
         .target(
             name: "HoyMCP",
             dependencies: ["HoyProtocol"]
+        ),
+        .executableTarget(
+            name: "hoy",
+            dependencies: ["HoyCLI"]
         ),
         .testTarget(name: "HoyCoreTests", dependencies: ["HoyCore"]),
         .testTarget(name: "HoyProtocolTests", dependencies: ["HoyProtocol"]),
