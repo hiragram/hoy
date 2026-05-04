@@ -814,22 +814,33 @@ struct AuthCommand: ParsableCommand {
 struct ReconcileCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "reconcile",
-        abstract: "SQLite と Git の整合性をチェック (ADR 0035)"
+        abstract: "SQLite と Git の整合性をチェック / 修復 (ADR 0035)"
     )
 
     @OptionGroup var options: GlobalOptions
+    @Flag(name: .customLong("repair"), help: "自動修復可能なもの (孤立 worktree など) を直す") var repair: Bool = false
 
     func run() throws {
         // daemon を経由せず直接 Workspace を開く
         let ws = try Workspace.open(at: options.rootPath)
-        let report = try Reconciliation(workspace: ws).check()
+        let svc = Reconciliation(workspace: ws)
+        let report = repair ? try svc.repair() : try svc.check()
         if report.isClean {
             print("clean")
             return
         }
         if !report.missingShas.isEmpty {
-            print("missing shas:")
+            print("missing shas (sqlite が指す sha が git にない):")
             for sha in report.missingShas { print("  - \(sha)") }
+        }
+        if !report.orphanCommits.isEmpty {
+            print("orphan commits (main にあるが task から参照されない):")
+            for sha in report.orphanCommits { print("  - \(sha)") }
+        }
+        if !report.unfinishedWorktrees.isEmpty {
+            print("unfinished worktrees (task は完了済なのに worktree が残っている):")
+            for id in report.unfinishedWorktrees { print("  - \(id)") }
+            print("  → hoy reconcile --repair で削除できる")
         }
         throw ExitCode(1)
     }

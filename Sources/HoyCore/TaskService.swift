@@ -75,6 +75,10 @@ public final class TaskService {
         try workspace.audit.append(AuditEntry.record(
             actor: actor, op: "task.complete", payload: payload, now: now
         ))
+        // ADR 0035: SQLite と git のクラッシュ整合のためここで WAL を取り込む。
+        // git commit は既に終わっており、ここで checkpoint することで
+        // 「commit はあるが task.completed が永続化されていない」窓を縮める。
+        try? workspace.storage.checkpoint()
         workspace.hooks.fire(event: "task.completed", payload: payload)
         return CompletionResult(task: completed, sha: sha ?? "")
     }
@@ -137,6 +141,7 @@ public final class TaskService {
             ],
             now: now
         ))
+        try? workspace.storage.checkpoint()
         workspace.hooks.fire(event: "task.reverted", payload: [
             "taskId": task.id, "intentId": task.intentId,
             "originalSha": originalSha, "revertSha": revertSha

@@ -146,6 +146,12 @@ public final class SQLiteStorage {
         return Int(v ?? 0)
     }
 
+    /// WAL を本体ファイルに取り込む。task.complete のような mutation の後に
+    /// 呼んで永続性ウィンドウを縮める用途。失敗は致命でないので呼出側で握り潰してよい。
+    public func checkpoint() throws {
+        try db.run("PRAGMA wal_checkpoint(PASSIVE)")
+    }
+
     public func migrate() throws {
         try db.transaction {
             let current = try self.schemaVersion()
