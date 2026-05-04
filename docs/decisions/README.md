@@ -58,3 +58,6 @@
 | [0035](0035-recovery-and-anomaly.md) | 復旧手段はMVP必須、暴走検知は外部hook | Accepted | #8 |
 | [0036](0036-mvp-language-swift.md) | MVP実装言語はSwift | Accepted | — |
 | [0037](0037-project-name-hoy.md) | プロジェクト名はhoy | Accepted | — |
+| [0038](0038-metadata-storage-sqlite.md) | メタデータストレージはSQLite | Accepted | — |
+| [0039](0039-transport-unix-socket-jsonrpc.md) | トランスポートはUnix socket+JSON-RPC | Accepted | — |
+| [0040](0040-module-structure.md) | モジュール構成: core/protocol/daemon/cli/mcp | Accepted | — |
