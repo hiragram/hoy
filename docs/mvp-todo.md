@@ -163,7 +163,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] JSON-RPC 2.0 のパース・バリデーション(Dispatcher)
 - [x] HoyProtocol メソッドを HoyCore に dispatch(intent/task/verification/claim)
 - [x] エラー応答の整備(parseError / methodNotFound / invalidParams / notFound / conflict / invalidState)
-- [ ] リクエストごとのトレースログ
+- [x] リクエストごとのトレースログ(`<root>/daemon.log` に追記)
 - [ ] イベント push (task.completed 等の subscription)
 
 ### 5.3 バックグラウンドジョブ

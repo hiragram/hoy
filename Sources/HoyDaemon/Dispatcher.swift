@@ -20,6 +20,23 @@ public final class Dispatcher: @unchecked Sendable {
         self.verificationRunner = VerificationRunner(workspace: workspace)
     }
 
+    private func trace(method: String, requestId: String, actor: PrincipalRef, error: String? = nil) {
+        let logPath = (workspace.root as NSString).appendingPathComponent("daemon.log")
+        let ts = ISO8601DateFormatter().string(from: Date())
+        var line = "[\(ts)] \(actor.id):\(actor.kind.rawValue) \(method) id=\(requestId)"
+        if let error { line += " error=\(error)" }
+        line += "\n"
+        if let data = line.data(using: .utf8) {
+            if let fh = FileHandle(forWritingAtPath: logPath) {
+                fh.seekToEndOfFile()
+                fh.write(data)
+                try? fh.close()
+            } else {
+                _ = FileManager.default.createFile(atPath: logPath, contents: data)
+            }
+        }
+    }
+
     private func audit(_ op: String, by actor: PrincipalRef, payload: [String: String]) {
         try? workspace.audit.append(AuditEntry.record(
             actor: actor, op: op, payload: payload, now: Date()
@@ -45,6 +62,8 @@ public final class Dispatcher: @unchecked Sendable {
                 encoder: encoder
             )
         }
+
+        defer { trace(method: header.method, requestId: header.id, actor: actor) }
 
         do {
             return try route(
