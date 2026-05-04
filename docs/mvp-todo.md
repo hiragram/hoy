@@ -48,13 +48,13 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.3 VerificationCheck
 
-- [ ] `kind: automated | human` と `category: String` を持つ(concept §5.4)
-- [ ] `status: pending | running | passed | failed | waived`
-- [ ] `required: Bool`
-- [ ] `evidence` フィールド(任意の構造化データ)
-- [ ] Task は `[VerificationCheck]` を持つ
-- [ ] 完了判定: 必須 check がすべて `passed` か `waived`
-- [ ] `waived` 状態には理由と承認者が必須
+- [x] `kind: automated | human` と `category: String` を持つ(concept §5.4)
+- [x] `status: pending | running | passed | failed | waived`
+- [x] `required: Bool`
+- [x] `evidence` フィールド(任意の構造化データ)
+- [x] Task は `[VerificationCheck]` を持つ
+- [x] 完了判定: 必須 check がすべて `passed` か `waived`
+- [x] `waived` 状態には理由と承認者が必須
 
 ### 1.4 Claim
 

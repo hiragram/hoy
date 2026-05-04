@@ -83,4 +83,31 @@ struct TaskTests {
             try task.revert()
         }
     }
+
+    // 必須検証経路が未通過なら complete を拒否
+    @Test func complete_blockedByPendingRequiredVerification() throws {
+        let pending = VerificationCheck.automated(category: "unittest", command: "x")
+        let task = HoyTask.create(
+            intentId: "i",
+            title: "x",
+            createdBy: principal,
+            verifications: [pending]
+        )
+        #expect(throws: HoyTaskError.verificationsNotSatisfied) {
+            try task.complete()
+        }
+    }
+
+    @Test func complete_passesWhenRequiredSatisfied() throws {
+        let passed = try VerificationCheck.automated(category: "unittest", command: "x")
+            .markPassed(evidence: "ok")
+        let task = HoyTask.create(
+            intentId: "i",
+            title: "x",
+            createdBy: principal,
+            verifications: [passed]
+        )
+        let completed = try task.complete()
+        #expect(completed.status == .completed)
+    }
 }

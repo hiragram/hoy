@@ -2,6 +2,7 @@ import Foundation
 
 public enum HoyTaskError: Error, Equatable {
     case invalidTransition
+    case verificationsNotSatisfied
 }
 
 // Swift 並行性の `Task` と衝突するので `HoyTask` で定義する。
@@ -21,12 +22,14 @@ public struct HoyTask {
     public let createdBy: PrincipalRef
     public let status: Status
     public let dependsOn: [IntentRef]
+    public let verifications: [VerificationCheck]
 
     public static func create(
         intentId: String,
         title: String,
         createdBy: PrincipalRef,
-        dependsOn: [IntentRef] = []
+        dependsOn: [IntentRef] = [],
+        verifications: [VerificationCheck] = []
     ) -> HoyTask {
         return HoyTask(
             id: UUID().uuidString,
@@ -34,12 +37,16 @@ public struct HoyTask {
             title: title,
             createdBy: createdBy,
             status: .open,
-            dependsOn: dependsOn
+            dependsOn: dependsOn,
+            verifications: verifications
         )
     }
 
     public func complete() throws -> HoyTask {
         guard status != .completed else { throw HoyTaskError.invalidTransition }
+        guard VerificationGate.allRequiredSatisfied(in: verifications) else {
+            throw HoyTaskError.verificationsNotSatisfied
+        }
         return with(status: .completed)
     }
 
@@ -55,7 +62,8 @@ public struct HoyTask {
             title: title,
             createdBy: createdBy,
             status: status,
-            dependsOn: dependsOn
+            dependsOn: dependsOn,
+            verifications: verifications
         )
     }
 }
