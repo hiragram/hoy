@@ -16,9 +16,11 @@ enum DashboardHTML {
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 14px/1.45 ui-monospace, "SF Mono", Menlo, monospace; }
   header { padding: 12px 20px; border-bottom: 1px solid var(--line);
-           display: flex; align-items: baseline; gap: 16px; }
+           display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
   header h1 { margin: 0; font-size: 16px; font-weight: 600; }
   header .meta { color: var(--muted); font-size: 12px; }
+  header .stat { color: var(--fg); font-size: 12px; }
+  header .stat .num { color: var(--accent); font-weight: 600; }
   .container { max-width: 1100px; margin: 0 auto; padding: 16px 20px;
                display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
   .left { min-width: 0; }
@@ -127,10 +129,19 @@ enum DashboardHTML {
 <body>
 <header>
   <h1>hoy dashboard</h1>
-  <span class="meta" id="ts">—</span>
+  <span class="stat"><span class="num" id="stat-intents">0</span> intents</span>
+  <span class="stat"><span class="num" id="stat-tasks-open">0</span> open</span>
+  <span class="stat"><span class="num" id="stat-claims">0</span> claims</span>
+  <span class="stat"><span class="num" id="stat-worktrees">0</span> worktrees</span>
+  <span class="meta" id="ts" style="margin-left:auto">—</span>
   <span class="meta" id="status">connecting…</span>
   <span class="meta" id="event-status">events: —</span>
 </header>
+
+<style id="extra"></style>
+<script>
+// no-op placeholder
+</script>
 <div class="container">
   <div class="left">
     <section>
@@ -146,6 +157,10 @@ enum DashboardHTML {
     <section>
       <h2>events <span style="color:var(--muted);font-weight:normal">(live)</span></h2>
       <div id="events" class="events"><div class="empty">no events yet</div></div>
+    </section>
+    <section>
+      <h2>worktrees</h2>
+      <div id="worktrees" class="audit"><div class="empty">—</div></div>
     </section>
     <section>
       <h2>recent activity <span style="color:var(--muted);font-weight:normal">(audit)</span></h2>
@@ -237,6 +252,42 @@ function renderTasks(tasks) {
   }).join('');
   const more = active.length > 5 ? `<div class="item">… +${active.length - 5} more</div>` : '';
   return `<div class="tasks"><div class="counts">${badges}</div>${items}${more}</div>`;
+}
+
+function renderWorktrees(wts) {
+  const el = $('worktrees');
+  if (!wts.length) { el.innerHTML = '<div class="empty">なし</div>'; return; }
+  el.innerHTML = wts.map(w => {
+    const entry = taskMap[w.taskId];
+    const title = entry ? esc(entry.task.title) : '(unknown task)';
+    const status = entry ? esc(entry.task.status) : '';
+    return `<div class="audit-entry">
+      <span class="when">${shortId(w.taskId)}</span>
+      <span class="op">${status}</span>
+      <span>${title}</span>
+      <div class="body">${esc(w.path)}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateStats(state) {
+  let totalIntents = 0, openTasks = 0;
+  function walk(node) {
+    totalIntents++;
+    for (const t of (node.tasks || [])) {
+      if (['open','claimed','inProgress'].includes(t.status)) openTasks++;
+    }
+    for (const c of (node.children || [])) walk(c);
+  }
+  for (const i of (state.intents || [])) walk(i);
+  $('stat-intents').textContent = totalIntents;
+  $('stat-tasks-open').textContent = openTasks;
+  $('stat-claims').textContent = (state.claims || []).length;
+  $('stat-worktrees').textContent = (state.worktrees || []).length;
+  // page title でブラウザタブからも見えるように
+  document.title = openTasks > 0
+    ? `(${openTasks}) hoy dashboard`
+    : 'hoy dashboard';
 }
 
 function renderAudit(entries) {
@@ -349,6 +400,8 @@ async function refreshState() {
       intentsEl.innerHTML = intents.map(i => renderIntent(i, claimsByIntent)).join('');
     }
     renderAudit(state.audit || []);
+    renderWorktrees(state.worktrees || []);
+    updateStats(state);
   } catch (e) {
     $('status').textContent = '⚠ daemon に接続できません';
     $('status').classList.add('disconnected');

@@ -79,6 +79,10 @@ public final class DashboardServer: @unchecked Sendable {
             Methods.AuditTail.self, params: Methods.AuditTail.Params(limit: 30)
         ).entries) ?? []
 
+        // <root>/worktrees/ の中身 = active worktrees (taskId をディレクトリ名として持つ)
+        let worktreesDir = (rootPath as NSString).appendingPathComponent("worktrees")
+        let worktreeIds = (try? FileManager.default.contentsOfDirectory(atPath: worktreesDir)) ?? []
+
         let payload: [String: Any] = [
             "root": rootPath,
             "ts": Date().timeIntervalSince1970,
@@ -99,6 +103,10 @@ public final class DashboardServer: @unchecked Sendable {
                     "op": e.op,
                     "payload": e.payload
                 ]
+            },
+            "worktrees": worktreeIds.filter { !$0.hasPrefix(".") }.map { id in
+                let path = (worktreesDir as NSString).appendingPathComponent(id)
+                return ["taskId": id, "path": path]
             }
         ]
         return try JSONSerialization.data(withJSONObject: payload)
