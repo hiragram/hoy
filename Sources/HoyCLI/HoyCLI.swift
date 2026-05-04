@@ -22,6 +22,7 @@ public struct HoyApp: ParsableCommand {
             RestoreCommand.self,
             AuthCommand.self,
             EventsCommand.self,
+            StatusCommand.self,
         ]
     )
 
@@ -532,6 +533,120 @@ struct ClaimCommand: ParsableCommand {
                 print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
             }
         }
+    }
+}
+
+// MARK: - status
+
+struct StatusCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "status",
+        abstract: "ワークスペース全体の状態をツリー表示 (--watch でイベント連動)"
+    )
+
+    @OptionGroup var options: GlobalOptions
+    @Flag(name: .customLong("watch"), help: "events に追従して再描画") var watch: Bool = false
+    @Flag(name: .customLong("include-closed"), help: "closed Intent も表示") var includeClosed: Bool = false
+
+    func run() throws {
+        try render()
+        if !watch { return }
+
+        let client = options.makeClient()
+        try client.subscribe(methods: nil) { _ in
+            // 何かしらのイベントが来たら再描画
+            FileHandle.standardOutput.write(Data("\u{001B}[2J\u{001B}[H".utf8))
+            do { try self.render() } catch { /* ignore */ }
+            return true
+        }
+    }
+
+    private func render() throws {
+        let client = options.makeClient()
+        let now = Date()
+        let claims = (try? client.call(
+            Methods.ClaimList.self, params: Methods.ClaimList.Params()
+        ).claims) ?? []
+        let claimsByIntent = Dictionary(grouping: claims, by: { $0.targetIntentId })
+
+        let topLevel = try client.call(
+            Methods.IntentList.self,
+            params: Methods.IntentList.Params(parentId: nil, includeClosed: includeClosed)
+        ).intents
+
+        let header = "hoy status — \(ISO8601DateFormatter().string(from: now))"
+        print(header)
+        print(String(repeating: "─", count: header.count))
+        print()
+
+        if claims.isEmpty {
+            print("active claims: なし")
+        } else {
+            print("active claims:")
+            for c in claims {
+                let remain = Int(c.expiresAt - now.timeIntervalSince1970)
+                print("  \(c.principal.id) (\(c.principal.kind)) → \(short(c.targetIntentId)) (残り \(remain)s)")
+            }
+        }
+        print()
+
+        if topLevel.isEmpty {
+            print("Intents: なし")
+            return
+        }
+        print("Intents:")
+        for intent in topLevel {
+            try renderIntent(intent, depth: 0, claimsByIntent: claimsByIntent, client: client, now: now)
+        }
+    }
+
+    private func renderIntent(
+        _ intent: IntentDTO, depth: Int,
+        claimsByIntent: [String: [ClaimDTO]],
+        client: RPCClient, now: Date
+    ) throws {
+        let indent = String(repeating: "  ", count: depth)
+        let stat = intent.status == "closed" ? "✕" : "○"
+        var line = "\(indent)\(stat) \(short(intent.id)) v\(intent.version) — \(intent.title)"
+        if let claimers = claimsByIntent[intent.id], !claimers.isEmpty {
+            line += "  [claimed by \(claimers.map { $0.principal.id }.joined(separator: ", "))]"
+        }
+        print(line)
+
+        // tasks
+        let tasks = (try? client.call(
+            Methods.TaskList.self,
+            params: Methods.TaskList.Params(intentId: intent.id)
+        ).tasks) ?? []
+        if !tasks.isEmpty {
+            let counts = Dictionary(grouping: tasks, by: { $0.status })
+                .mapValues { $0.count }
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key):\($0.value)" }
+                .joined(separator: " ")
+            print("\(indent)  tasks: \(counts)")
+            // open / claimed / inProgress な task は個別に表示
+            let active = tasks.filter { ["open", "claimed", "inProgress"].contains($0.status) }
+            for t in active.prefix(5) {
+                print("\(indent)    · [\(t.status)] \(short(t.id)) — \(t.title)")
+            }
+            if active.count > 5 {
+                print("\(indent)    … +\(active.count - 5) more")
+            }
+        }
+
+        // children
+        let children = (try? client.call(
+            Methods.IntentList.self,
+            params: Methods.IntentList.Params(parentId: intent.id, includeClosed: includeClosed)
+        ).intents) ?? []
+        for child in children {
+            try renderIntent(child, depth: depth + 1, claimsByIntent: claimsByIntent, client: client, now: now)
+        }
+    }
+
+    private func short(_ id: String) -> String {
+        return String(id.prefix(8))
     }
 }
 

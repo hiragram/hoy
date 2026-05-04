@@ -84,6 +84,31 @@ public final class ClaimRepository {
         return out
     }
 
+    public func list() throws -> [Claim] {
+        let stmt = try storage.db.prepare(
+            """
+            SELECT target_intent_id, principal_id, principal_kind, acquired_at, expires_at
+            FROM claims ORDER BY acquired_at DESC
+            """
+        )
+        var out: [Claim] = []
+        for row in stmt {
+            let target = row[0] as! String
+            let pid = row[1] as! String
+            let kindStr = row[2] as! String
+            let acquired = row[3] as! Double
+            let expires = row[4] as! Double
+            guard let kind = PrincipalRef.Kind(rawValue: kindStr) else { continue }
+            out.append(Claim(
+                principal: PrincipalRef(id: pid, kind: kind),
+                targetIntentId: target,
+                acquiredAt: Date(timeIntervalSince1970: acquired),
+                expiresAt: Date(timeIntervalSince1970: expires)
+            ))
+        }
+        return out
+    }
+
     public func get(targetIntentId: String) throws -> Claim? {
         let stmt = try storage.db.prepare(
             """

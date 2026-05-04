@@ -314,6 +314,17 @@ public enum Methods {
 
     // MARK: - claim
 
+    public enum ClaimList: RPCMethod {
+        public static let name = "claim.list"
+        public struct Params: Codable, Sendable, Equatable {
+            public init() {}
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let claims: [ClaimDTO]
+            public init(claims: [ClaimDTO]) { self.claims = claims }
+        }
+    }
+
     public enum ClaimAcquire: RPCMethod {
         public static let name = "claim.acquire"
         public struct Params: Codable, Sendable, Equatable {

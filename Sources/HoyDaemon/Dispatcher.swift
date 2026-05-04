@@ -468,6 +468,17 @@ public final class Dispatcher: @unchecked Sendable {
                 )
             }
 
+        case Methods.ClaimList.name:
+            return try handle(
+                Methods.ClaimList.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { _ in
+                let claims = try self.workspace.claims.list()
+                return Methods.ClaimList.Result(
+                    claims: claims.map(DTOMapper.toDTO)
+                )
+            }
+
         case Methods.ClaimAcquire.name:
             return try handle(
                 Methods.ClaimAcquire.self, data: requestData, id: requestId,
