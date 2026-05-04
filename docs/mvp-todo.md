@@ -153,22 +153,23 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 5.1 ソケット listen
 
-- [ ] Unix domain socket 初期化(ADR 0039、`0600` 権限)
-- [ ] 接続受付と Session 確立
+- [x] Unix domain socket 初期化(UnixSocketServer、`0600` 権限、ADR 0039)
+- [ ] 接続受付と Session 確立(Phase 5.1 後半: TokenAuthenticator)
 - [ ] Principal 認証(token、ADR 0025)
-- [ ] graceful shutdown
+- [x] graceful shutdown(stop)
 
 ### 5.2 リクエスト dispatch
 
-- [ ] JSON-RPC 2.0 のパース・バリデーション
-- [ ] HoyProtocol メソッドを HoyCore に dispatch
-- [ ] エラー応答の整備
+- [x] JSON-RPC 2.0 のパース・バリデーション(Dispatcher)
+- [x] HoyProtocol メソッドを HoyCore に dispatch(intent/task/verification/claim)
+- [x] エラー応答の整備(parseError / methodNotFound / invalidParams / notFound / conflict / invalidState)
 - [ ] リクエストごとのトレースログ
+- [ ] イベント push (task.completed 等の subscription)
 
 ### 5.3 バックグラウンドジョブ
 
-- [ ] claim ハートビート期限切れ監視
-- [ ] 検証経路実行ワーカー
+- [ ] claim ハートビート期限切れ監視(タイマーで purgeExpired を回す)
+- [ ] 検証経路実行ワーカー(現状は同期実行、将来は非同期化)
 - [ ] hook 起動(ADR 0016 の agent-dispatch.sh)
 
 ---
