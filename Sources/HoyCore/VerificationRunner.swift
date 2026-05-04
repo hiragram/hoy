@@ -27,14 +27,23 @@ public final class VerificationRunner {
         var updated = task.verifications
         for index in updated.indices {
             let check = updated[index]
-            guard case .automated(let command) = check.kind, check.status == .pending else {
+            guard case .automated(let command) = check.kind else { continue }
+            // pending か failed なら走らせる。failed は redObserved を保持しつつ
+            // 内部で pending に戻して再 run。
+            let runnable: VerificationCheck
+            switch check.status {
+            case .pending:
+                runnable = check
+            case .failed:
+                runnable = check.prepareForRerun()
+            default:
                 continue
             }
             let result = try runShell(command, cwd: cwd)
             let evidence = "cwd \(cwd)\nexit \(result.exitCode)\n--- stdout ---\n\(result.stdout)\n--- stderr ---\n\(result.stderr)"
             updated[index] = result.exitCode == 0
-                ? try check.markPassed(evidence: evidence)
-                : try check.markFailed(evidence: evidence)
+                ? try runnable.markPassed(evidence: evidence)
+                : try runnable.markFailed(evidence: evidence)
         }
         let next = task.replacingVerifications(updated)
         try workspace.tasks.save(next)

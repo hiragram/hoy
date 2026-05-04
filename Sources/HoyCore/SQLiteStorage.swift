@@ -131,6 +131,11 @@ public final class SQLiteStorage {
         // v6: tasks に completed_sha 列を追加
         """
         ALTER TABLE tasks ADD COLUMN completed_sha TEXT;
+        """,
+        // v7: verifications に test_first / red_observed 列を追加 (ADR 0048 Stage 2)
+        """
+        ALTER TABLE verifications ADD COLUMN test_first INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE verifications ADD COLUMN red_observed INTEGER NOT NULL DEFAULT 0;
         """
     ]
 

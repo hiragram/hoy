@@ -105,4 +105,48 @@ struct VerificationGateTests {
         let pending = VerificationCheck.automated(category: "unittest", command: "x")
         #expect(!VerificationGate.allRequiredSatisfied(in: [pending]))
     }
+
+    // ADR 0048 Stage 2: testFirst の挙動
+
+    @Test func testFirst_passWithoutPriorFailRejected() throws {
+        let check = VerificationCheck.automated(
+            category: "test", command: "x", testFirst: true
+        )
+        let passed = try check.markPassed(evidence: "ok")
+        // pass はしたが fail を一度も見ていない → satisfied ではない
+        #expect(!VerificationGate.allRequiredSatisfied(in: [passed]))
+    }
+
+    @Test func testFirst_failThenRerunPassesAccepted() throws {
+        // 実フロー: agent がテスト追加 → run で fail → impl 追加 → 再 run で pass
+        let check = VerificationCheck.automated(
+            category: "test", command: "x", testFirst: true
+        )
+        let failed = try check.markFailed(evidence: "no impl yet")
+        #expect(failed.redObserved)
+        // 再走の準備: redObserved を保持したまま pending へ
+        let prepared = failed.prepareForRerun()
+        #expect(prepared.status == .pending)
+        #expect(prepared.redObserved)
+        let passed = try prepared.markPassed(evidence: "ok")
+        #expect(passed.redObserved)
+        #expect(VerificationGate.allRequiredSatisfied(in: [passed]))
+    }
+
+    // ADR 0017 の resetToPending は世界線リセットなので redObserved も消える
+    @Test func resetToPending_clearsRedObserved() throws {
+        let check = VerificationCheck.automated(
+            category: "test", command: "x", testFirst: true
+        )
+        let failed = try check.markFailed(evidence: "boom")
+        let reset = failed.resetToPending()
+        #expect(!reset.redObserved)
+    }
+
+    // testFirst でない通常の check は pass だけで satisfied
+    @Test func nonTestFirst_passAlone() throws {
+        let check = VerificationCheck.automated(category: "test", command: "x")
+        let passed = try check.markPassed(evidence: "ok")
+        #expect(VerificationGate.allRequiredSatisfied(in: [passed]))
+    }
 }

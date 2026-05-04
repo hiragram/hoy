@@ -16,9 +16,15 @@ public struct WorkspacePolicy: Codable, Sendable, Equatable {
         public let category: String
         public let spec: String
         public let required: Bool
+        /// ADR 0048 Stage 2: pass の前に fail を観察した履歴を要求する
+        public let testFirst: Bool
 
-        public init(kind: String, category: String, spec: String, required: Bool) {
-            self.kind = kind; self.category = category; self.spec = spec; self.required = required
+        public init(
+            kind: String, category: String, spec: String,
+            required: Bool, testFirst: Bool = false
+        ) {
+            self.kind = kind; self.category = category; self.spec = spec
+            self.required = required; self.testFirst = testFirst
         }
     }
 

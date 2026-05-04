@@ -44,12 +44,14 @@ public final class TaskRepository {
                     """
                     INSERT INTO verifications
                     (id, task_id, kind, category, spec, status,
-                     waived_reason, waived_by_id, waived_by_kind, evidence, required, ordering)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     waived_reason, waived_by_id, waived_by_kind, evidence, required, ordering,
+                     test_first, red_observed)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     check.id, task.id, kind, check.category, spec, statusStr,
                     waivedReason, waivedById, waivedByKind,
-                    check.evidence, check.required ? 1 : 0, index
+                    check.evidence, check.required ? 1 : 0, index,
+                    check.testFirst ? 1 : 0, check.redObserved ? 1 : 0
                 )
             }
         }
@@ -134,7 +136,8 @@ public final class TaskRepository {
         let stmt = try storage.db.prepare(
             """
             SELECT id, kind, category, spec, status,
-                   waived_reason, waived_by_id, waived_by_kind, evidence, required
+                   waived_reason, waived_by_id, waived_by_kind, evidence, required,
+                   test_first, red_observed
             FROM verifications WHERE task_id = ?
             ORDER BY ordering ASC
             """,
@@ -152,6 +155,8 @@ public final class TaskRepository {
             let waivedByKindStr = row[7] as? String
             let evidence = row[8] as? String
             let required = (row[9] as! Int64) == 1
+            let testFirst = (row[10] as! Int64) == 1
+            let redObserved = (row[11] as! Int64) == 1
 
             let kind = try Self.decodeKind(kindStr: kindStr, spec: spec)
             let status = try Self.decodeStatus(
@@ -167,7 +172,9 @@ public final class TaskRepository {
                 category: category,
                 status: status,
                 required: required,
-                evidence: evidence
+                evidence: evidence,
+                testFirst: testFirst,
+                redObserved: redObserved
             ))
         }
         return out

@@ -24,11 +24,18 @@ public struct VerificationCheck: Equatable {
     public let status: Status
     public let required: Bool
     public let evidence: String?
+    /// ADR 0048 Stage 2: この check は「pass の前に fail を観察した履歴」が
+    /// あって初めて gate を満たす(test-first 強制)。
+    public let testFirst: Bool
+    /// pass/waive 判定で参照される。markFailed のたびに true になり、
+    /// resetToPending で false に戻る。
+    public let redObserved: Bool
 
     public static func automated(
         category: String,
         command: String,
-        required: Bool = true
+        required: Bool = true,
+        testFirst: Bool = false
     ) -> VerificationCheck {
         return VerificationCheck(
             id: UUID().uuidString,
@@ -36,14 +43,17 @@ public struct VerificationCheck: Equatable {
             category: category,
             status: .pending,
             required: required,
-            evidence: nil
+            evidence: nil,
+            testFirst: testFirst,
+            redObserved: false
         )
     }
 
     public static func human(
         category: String,
         instruction: String,
-        required: Bool = true
+        required: Bool = true,
+        testFirst: Bool = false
     ) -> VerificationCheck {
         return VerificationCheck(
             id: UUID().uuidString,
@@ -51,39 +61,51 @@ public struct VerificationCheck: Equatable {
             category: category,
             status: .pending,
             required: required,
-            evidence: nil
+            evidence: nil,
+            testFirst: testFirst,
+            redObserved: false
         )
     }
 
     public func markPassed(evidence: String) throws -> VerificationCheck {
         try requireNotTerminal()
-        return with(status: .passed, evidence: evidence)
+        return with(status: .passed, evidence: evidence, redObserved: redObserved)
     }
 
     public func markFailed(evidence: String) throws -> VerificationCheck {
         try requireNotTerminal()
-        return with(status: .failed, evidence: evidence)
+        return with(status: .failed, evidence: evidence, redObserved: true)
     }
 
     public func waive(reason: String, by approver: PrincipalRef) throws -> VerificationCheck {
-        // waive は「結果を承知して飛ばす」操作。passed/failed の terminal からも
-        // 許可する (例: failed をレビューして問題ないと判断したケース)。
-        // 同じ check を 2 度 waive することのみ拒否。
         if case .waived = status {
             throw VerificationCheckError.invalidTransition
         }
-        return with(status: .waived(reason: reason, by: approver), evidence: evidence)
+        return with(
+            status: .waived(reason: reason, by: approver),
+            evidence: evidence,
+            redObserved: redObserved
+        )
     }
 
     /// 統合後の再走 (ADR 0017) などで、terminal 状態の automated check を
-    /// pending に戻す。human / waived は触らない。
+    /// pending に戻す。redObserved もリセット(統合により世界線が更新された)。
     public func resetToPending() -> VerificationCheck {
         switch (kind, status) {
         case (.automated, .passed), (.automated, .failed):
-            return with(status: .pending, evidence: nil)
+            return with(status: .pending, evidence: nil, redObserved: false)
         default:
             return self
         }
+    }
+
+    /// 同一 task 内で fail 後に再 run する用。redObserved を保持しつつ
+    /// pending に戻す(これにより markPassed/markFailed が呼べる)。
+    public func prepareForRerun() -> VerificationCheck {
+        if case .failed = status {
+            return with(status: .pending, evidence: nil, redObserved: redObserved)
+        }
+        return self
     }
 
     private func requireNotTerminal() throws {
@@ -95,23 +117,32 @@ public struct VerificationCheck: Equatable {
         }
     }
 
-    private func with(status: Status, evidence: String?) -> VerificationCheck {
+    private func with(status: Status, evidence: String?, redObserved: Bool) -> VerificationCheck {
         return VerificationCheck(
             id: id,
             kind: kind,
             category: category,
             status: status,
             required: required,
-            evidence: evidence
+            evidence: evidence,
+            testFirst: testFirst,
+            redObserved: redObserved
         )
     }
 }
 
 public enum VerificationGate {
+    /// 必須 check がすべて satisfied か。
+    /// satisfied = waived OR (passed AND (testFirst が無い OR redObserved を観察済))
     public static func allRequiredSatisfied(in checks: [VerificationCheck]) -> Bool {
         for check in checks where check.required {
             switch check.status {
-            case .passed, .waived:
+            case .waived:
+                continue
+            case .passed:
+                if check.testFirst && !check.redObserved {
+                    return false
+                }
                 continue
             default:
                 return false

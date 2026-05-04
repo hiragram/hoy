@@ -613,17 +613,21 @@ struct PolicyCommand: ParsableCommand {
         @Option var category: String
         @Option(help: "automated は実行コマンド、human は指示文") var spec: String
         @Flag(name: .customLong("optional")) var optional: Bool = false
+        @Flag(name: .customLong("test-first"),
+              help: "TDD Stage 2: pass の前に fail を観察した履歴を要求する (ADR 0048)")
+        var testFirst: Bool = false
 
         func run() throws {
             var policy = WorkspacePolicy.load(rootPath: options.rootPath)
             let entry = WorkspacePolicy.DefaultVerification(
-                kind: kind, category: category, spec: spec, required: !optional
+                kind: kind, category: category, spec: spec,
+                required: !optional, testFirst: testFirst
             )
             policy = WorkspacePolicy(
                 defaultVerifications: policy.defaultVerifications + [entry]
             )
             try policy.save(rootPath: options.rootPath)
-            print("added: \(kind):\(category) \(spec)")
+            print("added: \(kind):\(category) \(spec)\(testFirst ? " (test-first)" : "")")
             print("(daemon を再起動するか、すでに動作中の daemon の手動 reload が必要)")
         }
     }

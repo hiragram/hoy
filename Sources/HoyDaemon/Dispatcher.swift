@@ -249,11 +249,13 @@ public final class Dispatcher: @unchecked Sendable {
                         switch dv.kind {
                         case "automated":
                             verifications.append(.automated(
-                                category: dv.category, command: dv.spec, required: dv.required
+                                category: dv.category, command: dv.spec,
+                                required: dv.required, testFirst: dv.testFirst
                             ))
                         case "human":
                             verifications.append(.human(
-                                category: dv.category, instruction: dv.spec, required: dv.required
+                                category: dv.category, instruction: dv.spec,
+                                required: dv.required, testFirst: dv.testFirst
                             ))
                         default:
                             continue
