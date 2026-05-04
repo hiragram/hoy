@@ -136,7 +136,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `task.create / get / list / complete / revert`(claim は claim.* で対応)
 - [x] `verification.add / run / report / waive`
 - [x] `claim.acquire / release / heartbeat`
-- [ ] `audit.append`(daemon 内部用、外部 RPC では露出させない)
+- [x] `audit.append` は外部 RPC に露出しない(Methods に含めず、内部 AuditLogRepository.append のみ。Dispatcher が各 mutation で自動記録)
 - [x] エラーコード体系(RPCErrorCode、JSON-RPC 標準 + hoy 固有 -32000 番台)
 - [x] バージョン情報の advertising(HoyProtocolVersion.current)
 
@@ -203,7 +203,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] reconciliation コマンド(`hoy reconcile`、ADR 0035。MVP は missing sha 検出のみ)
 - [x] バックアップ(`hoy backup <dest>`、SQLite ファイル + Git リポジトリのコピー)
 - [x] リストア(`hoy restore <snapshot>`、Backup.restore)
-- [ ] エラー・パニック時のリカバリ動作(daemon 例外時の挙動を整備)
+- [x] エラー・パニック時のリカバリ動作(Dispatcher が全例外を catch して RPC error 化、未知エラーは internalError で応答)
 
 ---
 
