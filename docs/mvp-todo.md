@@ -58,10 +58,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.4 Claim
 
-- [ ] `Claim(principalId, targetIntentId, expiresAt)` 値型
-- [ ] Intent 単位で 1 Principal が排他(ADR 0009)
-- [ ] 親と子は独立に claim 可能(ADR 0010)
-- [ ] 書き込み排他、読み取り自由(ADR 0012)
+- [x] `Claim(principalId, targetIntentId, expiresAt)` 値型
+- [ ] Intent 単位で 1 Principal が排他(ADR 0009)(Phase 3.1 ClaimRegistry で実装)
+- [ ] 親と子は独立に claim 可能(ADR 0010)(Phase 3.1 ClaimRegistry で実装)
+- [ ] 書き込み排他、読み取り自由(ADR 0012)(Phase 3.1 ClaimRegistry で実装)
 
 ### 1.5 Principal / Session
 
