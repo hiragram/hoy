@@ -89,6 +89,12 @@ struct DaemonCommand: ParsableCommand {
         @Option(name: .customLong("principal-id"), help: "実行 Principal ID")
         var principalId: String = "local-dev"
 
+        @Flag(name: .customLong("with-dashboard"), help: "同プロセスで Web ダッシュボードも起動")
+        var withDashboard: Bool = false
+
+        @Option(name: .customLong("dashboard-port"), help: "ダッシュボードの listen ポート")
+        var dashboardPort: Int = 8765
+
         func run() throws {
             let workspace = try Workspace.open(at: options.rootPath)
             let actor = PrincipalRef(id: principalId, kind: .human)
@@ -99,6 +105,21 @@ struct DaemonCommand: ParsableCommand {
             )
             try server.start()
 
+            // --with-dashboard: 同プロセスで HTTP ダッシュボードも起動
+            // (自分の Unix socket に loopback クライアントとして繋ぐ)
+            var dashboard: DashboardServer? = nil
+            if withDashboard {
+                let dashRpc = RPCClient(socketPath: options.socketPath, token: nil)
+                let dash = DashboardServer(
+                    port: dashboardPort, rpc: dashRpc, rootPath: options.rootPath
+                )
+                try dash.start()
+                dashboard = dash
+                FileHandle.standardError.write(Data(
+                    "hoy dashboard: http://127.0.0.1:\(dashboardPort)/\n".utf8
+                ))
+            }
+
             let pid = ProcessInfo.processInfo.processIdentifier
             let pidPath = DaemonCommand.pidFilePath(root: options.rootPath)
             try "\(pid)\n".write(toFile: pidPath, atomically: true, encoding: .utf8)
@@ -106,6 +127,7 @@ struct DaemonCommand: ParsableCommand {
             // SIGTERM で graceful shutdown
             let sigsrc = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
             sigsrc.setEventHandler {
+                dashboard?.stop()
                 server.stop()
                 try? FileManager.default.removeItem(atPath: pidPath)
                 Foundation.exit(0)
