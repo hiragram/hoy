@@ -19,4 +19,19 @@ struct IntentTests {
         let intent = Intent.create(title: "x")
         #expect(intent.version == 1)
     }
+
+    @Test func create_retainsTitle() {
+        let intent = Intent.create(title: "ship MVP")
+        #expect(intent.title == "ship MVP")
+    }
+
+    @Test func create_bodyDefaultsToEmpty() {
+        let intent = Intent.create(title: "x")
+        #expect(intent.body == "")
+    }
+
+    @Test func create_retainsBodyWhenProvided() {
+        let intent = Intent.create(title: "x", body: "rationale")
+        #expect(intent.body == "rationale")
+    }
 }
