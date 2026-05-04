@@ -241,11 +241,31 @@ public final class Dispatcher: @unchecked Sendable {
                 Methods.TaskCreate.self, data: requestData, id: requestId,
                 decoder: decoder, encoder: encoder
             ) { params in
+                // workspace policy の default verifications を attach
+                // (skip フラグが立っていなければ)
+                var verifications: [VerificationCheck] = []
+                if params.skipDefaultVerifications != true {
+                    for dv in self.workspace.policy.defaultVerifications {
+                        switch dv.kind {
+                        case "automated":
+                            verifications.append(.automated(
+                                category: dv.category, command: dv.spec, required: dv.required
+                            ))
+                        case "human":
+                            verifications.append(.human(
+                                category: dv.category, instruction: dv.spec, required: dv.required
+                            ))
+                        default:
+                            continue
+                        }
+                    }
+                }
                 let task = HoyTask.create(
                     intentId: params.intentId,
                     title: params.title,
                     createdBy: actor,
-                    dependsOn: params.dependsOn.map(DTOMapper.fromDTO)
+                    dependsOn: params.dependsOn.map(DTOMapper.fromDTO),
+                    verifications: verifications
                 )
                 try self.workspace.tasks.save(task)
                 self.audit("task.create", by: actor, payload: [

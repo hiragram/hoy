@@ -89,8 +89,15 @@ public enum Methods {
             public let intentId: String
             public let title: String
             public let dependsOn: [IntentRefDTO]
-            public init(intentId: String, title: String, dependsOn: [IntentRefDTO] = []) {
-                self.intentId = intentId; self.title = title; self.dependsOn = dependsOn
+            public let skipDefaultVerifications: Bool?
+            public init(
+                intentId: String, title: String,
+                dependsOn: [IntentRefDTO] = [],
+                skipDefaultVerifications: Bool? = nil
+            ) {
+                self.intentId = intentId; self.title = title
+                self.dependsOn = dependsOn
+                self.skipDefaultVerifications = skipDefaultVerifications
             }
         }
         public struct Result: Codable, Sendable, Equatable {

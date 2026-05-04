@@ -24,6 +24,7 @@ public struct HoyApp: ParsableCommand {
             EventsCommand.self,
             StatusCommand.self,
             DashboardCommand.self,
+            PolicyCommand.self,
         ]
     )
 
@@ -347,15 +348,27 @@ struct TaskCommand: ParsableCommand {
         @OptionGroup var options: GlobalOptions
         @Option(name: .customLong("intent")) var intentId: String
         @Argument var title: String
+        @Flag(name: .customLong("skip-default-verifications"),
+              help: "workspace policy の default verifications を attach しない")
+        var skipDefaultVerifications: Bool = false
 
         func run() throws {
             let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskCreate.self,
-                params: Methods.TaskCreate.Params(intentId: intentId, title: title)
+                params: Methods.TaskCreate.Params(
+                    intentId: intentId, title: title,
+                    skipDefaultVerifications: skipDefaultVerifications ? true : nil
+                )
             )
             emit(result.task, json: options.json) {
                 print("task: \(result.task.id) — \(result.task.title)")
+                if !result.task.verifications.isEmpty {
+                    print("checks (auto-attached):")
+                    for v in result.task.verifications {
+                        print("  - \(v.kind):\(v.category) \(v.spec)")
+                    }
+                }
             }
         }
     }
@@ -558,6 +571,73 @@ struct ClaimCommand: ParsableCommand {
             emit(result.claim, json: options.json) {
                 print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
             }
+        }
+    }
+}
+
+// MARK: - policy
+
+struct PolicyCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "policy",
+        abstract: "workspace policy (default verifications 等) の表示・編集",
+        subcommands: [Show.self, AddVerification.self, Clear.self]
+    )
+
+    struct Show: ParsableCommand {
+        @OptionGroup var options: GlobalOptions
+        func run() throws {
+            let policy = WorkspacePolicy.load(rootPath: options.rootPath)
+            emit(policy, json: options.json) {
+                let path = (options.rootPath as NSString).appendingPathComponent("policy.json")
+                print("policy file: \(path)")
+                if policy.defaultVerifications.isEmpty {
+                    print("(default verifications なし)")
+                } else {
+                    print("default verifications:")
+                    for v in policy.defaultVerifications {
+                        print("  - \(v.kind):\(v.category) \(v.spec)\(v.required ? " (required)" : "")")
+                    }
+                }
+            }
+        }
+    }
+
+    struct AddVerification: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "add-default-verification",
+            abstract: "policy.json の default_verifications に 1 件追加"
+        )
+        @OptionGroup var options: GlobalOptions
+        @Option(help: "automated or human") var kind: String
+        @Option var category: String
+        @Option(help: "automated は実行コマンド、human は指示文") var spec: String
+        @Flag(name: .customLong("optional")) var optional: Bool = false
+
+        func run() throws {
+            var policy = WorkspacePolicy.load(rootPath: options.rootPath)
+            let entry = WorkspacePolicy.DefaultVerification(
+                kind: kind, category: category, spec: spec, required: !optional
+            )
+            policy = WorkspacePolicy(
+                defaultVerifications: policy.defaultVerifications + [entry]
+            )
+            try policy.save(rootPath: options.rootPath)
+            print("added: \(kind):\(category) \(spec)")
+            print("(daemon を再起動するか、すでに動作中の daemon の手動 reload が必要)")
+        }
+    }
+
+    struct Clear: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "clear",
+            abstract: "default verifications をすべて削除"
+        )
+        @OptionGroup var options: GlobalOptions
+        func run() throws {
+            let policy = WorkspacePolicy(defaultVerifications: [])
+            try policy.save(rootPath: options.rootPath)
+            print("cleared")
         }
     }
 }

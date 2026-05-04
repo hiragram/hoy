@@ -14,6 +14,7 @@ public final class Workspace {
     public let audit: AuditLogRepository
     public let hooks: HookRunner
     public let worktrees: WorktreeManager
+    public var policy: WorkspacePolicy
 
     private init(
         root: String,
@@ -31,6 +32,12 @@ public final class Workspace {
         self.audit = AuditLogRepository(storage: storage)
         self.hooks = HookRunner(workspaceRoot: root)
         self.worktrees = WorktreeManager(workspaceRoot: root, mainGit: git)
+        self.policy = WorkspacePolicy.load(rootPath: root)
+    }
+
+    /// policy.json を再読込 (CLI や外部から policy を書き換えた後に呼ぶ)
+    public func reloadPolicy() {
+        self.policy = WorkspacePolicy.load(rootPath: root)
     }
 
     public static func open(at root: String) throws -> Workspace {
