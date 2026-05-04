@@ -37,9 +37,10 @@ public enum HoyTools {
             tool("hoy_task_list", "Task 一覧", schema(properties: [
                 "intentId": ("string", false)
             ])),
-            tool("hoy_task_complete", "Task を完了 (commit=false でメタデータのみ)", schema(properties: [
+            tool("hoy_task_complete", "Task を完了 (commit=false でメタデータのみ、bypassVerifications=true で gate スキップ)", schema(properties: [
                 "id": ("string", true),
-                "commit": ("boolean", false)
+                "commit": ("boolean", false),
+                "bypassVerifications": ("boolean", false)
             ])),
             tool("hoy_task_close", "Task を close (キャンセル/別経路完了)", schema(properties: [
                 "id": ("string", true),

@@ -36,10 +36,12 @@ public final class TaskService {
 
     /// task の worktree 内の変更を commit、main へ rebase + ff 統合する。
     /// `commitChanges = false` ではメタデータのみ完了させる。
+    /// `bypassVerifications = true` で必須検証経路 gate を飛び越す。
     public func complete(
         task: HoyTask,
         by actor: PrincipalRef,
         commitChanges: Bool = true,
+        bypassVerifications: Bool = false,
         now: Date = Date()
     ) throws -> CompletionResult {
         let sha: String?
@@ -64,7 +66,7 @@ public final class TaskService {
         } else {
             sha = nil
         }
-        let completed = try task.complete(sha: sha)
+        let completed = try task.complete(sha: sha, bypassVerifications: bypassVerifications)
         try workspace.tasks.save(completed)
         var payload: [String: String] = [
             "taskId": task.id, "intentId": task.intentId

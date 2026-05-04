@@ -128,8 +128,11 @@ public enum Methods {
         public struct Params: Codable, Sendable, Equatable {
             public let id: String
             public let commit: Bool?
-            public init(id: String, commit: Bool? = nil) {
-                self.id = id; self.commit = commit
+            public let bypassVerifications: Bool?
+            public init(id: String, commit: Bool? = nil, bypassVerifications: Bool? = nil) {
+                self.id = id
+                self.commit = commit
+                self.bypassVerifications = bypassVerifications
             }
         }
         public struct Result: Codable, Sendable, Equatable {

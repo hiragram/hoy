@@ -44,10 +44,12 @@ public struct HoyTask: Equatable {
         )
     }
 
-    public func complete(sha: String?) throws -> HoyTask {
+    public func complete(sha: String?, bypassVerifications: Bool = false) throws -> HoyTask {
         guard status != .completed else { throw HoyTaskError.invalidTransition }
-        guard VerificationGate.allRequiredSatisfied(in: verifications) else {
-            throw HoyTaskError.verificationsNotSatisfied
+        if !bypassVerifications {
+            guard VerificationGate.allRequiredSatisfied(in: verifications) else {
+                throw HoyTaskError.verificationsNotSatisfied
+            }
         }
         return with(status: .completed, completedSha: sha)
     }

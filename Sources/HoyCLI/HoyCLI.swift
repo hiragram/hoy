@@ -359,12 +359,15 @@ struct TaskCommand: ParsableCommand {
         @OptionGroup var options: GlobalOptions
         @Argument var id: String
         @Flag(name: .customLong("no-commit"), help: "git commit を行わずメタデータだけ完了にする") var noCommit: Bool = false
+        @Flag(name: .customLong("bypass-verifications"), help: "必須検証経路の gate を飛び越す (pending な human check 等を残したまま完了)") var bypassVerifications: Bool = false
 
         func run() throws {
             let client = options.makeClient()
             let result = try client.call(
                 Methods.TaskComplete.self,
-                params: Methods.TaskComplete.Params(id: id, commit: !noCommit)
+                params: Methods.TaskComplete.Params(
+                    id: id, commit: !noCommit, bypassVerifications: bypassVerifications
+                )
             )
             emit(result, json: options.json) {
                 let suffix = result.sha.isEmpty ? "(metadata only)" : "at \(result.sha)"

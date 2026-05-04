@@ -310,7 +310,9 @@ public final class Dispatcher: @unchecked Sendable {
                 }
                 do {
                     let result = try self.taskService.complete(
-                        task: task, by: actor, commitChanges: params.commit ?? true
+                        task: task, by: actor,
+                        commitChanges: params.commit ?? true,
+                        bypassVerifications: params.bypassVerifications ?? false
                     )
                     self.publishEvent(EventName.taskCompleted, payload: [
                         "taskId": result.task.id,
