@@ -132,19 +132,20 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 4.1 メソッド定義(HoyProtocol)
 
-- [ ] `intent.create / get / list / update / close`
-- [ ] `task.create / get / list / claim / complete / revert`
-- [ ] `verification.add / run / report / waive`
-- [ ] `claim.acquire / release / heartbeat`
-- [ ] `audit.append`(内部用、外部からは禁止)
-- [ ] エラーコード体系
-- [ ] バージョン情報の advertising
+- [x] `intent.create / get / list / update / close`
+- [x] `task.create / get / list / complete / revert`(claim は claim.* で対応)
+- [x] `verification.add / run / report / waive`
+- [x] `claim.acquire / release / heartbeat`
+- [ ] `audit.append`(daemon 内部用、外部 RPC では露出させない)
+- [x] エラーコード体系(RPCErrorCode、JSON-RPC 標準 + hoy 固有 -32000 番台)
+- [x] バージョン情報の advertising(HoyProtocolVersion.current)
 
 ### 4.2 イベント定義
 
-- [ ] イベントスキーマ(ADR 0016 の標準イベント)
-- [ ] `task.completed / verification.failed / claim.expired / conflict.detected` 等
-- [ ] サブスクリプション機構(同じ socket で push、または別チャネル)
+- [x] イベントスキーマ(EventEnvelope、ADR 0016)
+- [x] `task.completed / verification.failed / claim.expired` を初期定義
+- [ ] `conflict.detected`(統合コンフリクトを実装する Phase 3.2 の続きで追加)
+- [ ] サブスクリプション機構(daemon 接続上での push、Phase 5.2)
 
 ---
 
