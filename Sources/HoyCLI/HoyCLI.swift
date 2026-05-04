@@ -232,7 +232,7 @@ struct IntentCommand: ParsableCommand {
                 Methods.IntentUpdate.self,
                 params: Methods.IntentUpdate.Params(id: id, title: title, body: body)
             )
-            printIntent(result.intent)
+            emit(result.intent, json: options.json) { printIntent(result.intent) }
         }
     }
 
@@ -247,7 +247,7 @@ struct IntentCommand: ParsableCommand {
                 Methods.IntentClose.self,
                 params: Methods.IntentClose.Params(id: id, reason: reason)
             )
-            printIntent(result.intent)
+            emit(result.intent, json: options.json) { printIntent(result.intent) }
         }
     }
 }
@@ -305,12 +305,11 @@ struct TaskCommand: ParsableCommand {
                 Methods.TaskGet.self,
                 params: Methods.TaskGet.Params(id: id)
             )
-            if let task = result.task {
-                printTask(task)
-            } else {
-                print("not found: \(id)")
+            guard let task = result.task else {
+                if options.json { print("null") } else { print("not found: \(id)") }
                 throw ExitCode(1)
             }
+            emit(task, json: options.json) { printTask(task) }
         }
     }
 
@@ -340,7 +339,9 @@ struct TaskCommand: ParsableCommand {
                 Methods.TaskRevert.self,
                 params: Methods.TaskRevert.Params(id: id)
             )
-            print("reverted: \(result.task.id) revert-sha=\(result.revertSha)")
+            emit(result, json: options.json) {
+                print("reverted: \(result.task.id) revert-sha=\(result.revertSha)")
+            }
         }
     }
 }
@@ -355,11 +356,11 @@ struct VerificationCommand: ParsableCommand {
 
     struct Add: ParsableCommand {
         @OptionGroup var options: GlobalOptions
-        @Option(name: .customLong("task")) var taskId: String
+        @Argument(help: "対象 Task ID") var taskId: String
         @Option(help: "automated or human") var kind: String
         @Option var category: String
         @Option(help: "automated は実行コマンド、human は指示文") var spec: String
-        @Flag(name: .customLong("optional"), inversion: .prefixedNo, exclusivity: .exclusive) var optional: Bool = false
+        @Flag(name: .customLong("optional"), help: "required=false にする") var optional: Bool = false
 
         func run() throws {
             let client = RPCClient(socketPath: options.socketPath)
@@ -370,13 +371,13 @@ struct VerificationCommand: ParsableCommand {
                     spec: spec, required: !optional
                 )
             )
-            printTask(result.task)
+            emit(result.task, json: options.json) { printTask(result.task) }
         }
     }
 
     struct Run: ParsableCommand {
         @OptionGroup var options: GlobalOptions
-        @Option(name: .customLong("task")) var taskId: String
+        @Argument(help: "対象 Task ID") var taskId: String
 
         func run() throws {
             let client = RPCClient(socketPath: options.socketPath)
@@ -384,16 +385,16 @@ struct VerificationCommand: ParsableCommand {
                 Methods.VerificationRun.self,
                 params: Methods.VerificationRun.Params(taskId: taskId)
             )
-            printTask(result.task)
+            emit(result.task, json: options.json) { printTask(result.task) }
         }
     }
 
     struct Report: ParsableCommand {
         @OptionGroup var options: GlobalOptions
-        @Option(name: .customLong("task")) var taskId: String
-        @Option(name: .customLong("check")) var checkId: String
-        @Flag var failed: Bool = false
-        @Option var evidence: String = ""
+        @Argument(help: "対象 Task ID") var taskId: String
+        @Option(name: .customLong("check"), help: "VerificationCheck ID") var checkId: String
+        @Flag(help: "passed の代わりに failed として記録") var failed: Bool = false
+        @Option(help: "stdout/stderr など根拠の記録") var evidence: String = ""
 
         func run() throws {
             let client = RPCClient(socketPath: options.socketPath)
@@ -404,14 +405,14 @@ struct VerificationCommand: ParsableCommand {
                     passed: !failed, evidence: evidence
                 )
             )
-            printTask(result.task)
+            emit(result.task, json: options.json) { printTask(result.task) }
         }
     }
 
     struct Waive: ParsableCommand {
         @OptionGroup var options: GlobalOptions
-        @Option(name: .customLong("task")) var taskId: String
-        @Option(name: .customLong("check")) var checkId: String
+        @Argument(help: "対象 Task ID") var taskId: String
+        @Option(name: .customLong("check"), help: "VerificationCheck ID") var checkId: String
         @Option var reason: String
 
         func run() throws {
@@ -422,7 +423,7 @@ struct VerificationCommand: ParsableCommand {
                     taskId: taskId, checkId: checkId, reason: reason
                 )
             )
-            printTask(result.task)
+            emit(result.task, json: options.json) { printTask(result.task) }
         }
     }
 }
@@ -448,7 +449,9 @@ struct ClaimCommand: ParsableCommand {
                     targetIntentId: intentId, ttlSeconds: ttl
                 )
             )
-            print("claimed: \(result.claim.targetIntentId) by \(result.claim.principal.id)")
+            emit(result.claim, json: options.json) {
+                print("claimed: \(result.claim.targetIntentId) by \(result.claim.principal.id)")
+            }
         }
     }
 
@@ -462,7 +465,10 @@ struct ClaimCommand: ParsableCommand {
                 Methods.ClaimRelease.self,
                 params: Methods.ClaimRelease.Params(targetIntentId: intentId)
             )
-            print("released: \(intentId)")
+            struct Released: Encodable { let released: String }
+            emit(Released(released: intentId), json: options.json) {
+                print("released: \(intentId)")
+            }
         }
     }
 
@@ -479,7 +485,9 @@ struct ClaimCommand: ParsableCommand {
                     targetIntentId: intentId, ttlSeconds: ttl
                 )
             )
-            print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
+            emit(result.claim, json: options.json) {
+                print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
+            }
         }
     }
 }

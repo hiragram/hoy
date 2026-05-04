@@ -64,7 +64,8 @@ The binary is produced at `.build/debug/hoy` (or `.build/release/hoy` with `swif
 ## Quick start
 
 ```sh
-# Pick a workspace root (defaults to ~/.hoy/default)
+# Pick a workspace root. Every subcommand respects HOY_ROOT / HOY_SOCKET, so
+# exporting them once means you don't repeat --root / --socket on each call.
 export HOY_ROOT=/tmp/hoy-demo
 
 # Start the daemon in the foreground
@@ -75,10 +76,10 @@ INTENT=$(hoy intent create "ship MVP" --json | jq -r .id)
 TASK=$(hoy task create --intent "$INTENT" "wire the dispatcher" --json | jq -r .id)
 
 # Add an automated verification check
-hoy verification add --task "$TASK" --kind automated --category unittest --spec "swift test"
+hoy verification add "$TASK" --kind automated --category unittest --spec "swift test"
 
 # Run the automated checks (records exit/stdout/stderr as evidence)
-hoy verification run --task "$TASK"
+hoy verification run "$TASK"
 
 # Complete the task — commits the working tree, transitions the task,
 #   and writes an audit entry. A `task.completed` hook fires if you've
@@ -120,7 +121,13 @@ hoy mcp <<<'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 | `hoy backup <dir>` / `hoy restore <snapshot>` | Snapshot of `state.db` + `repo/` |
 | `hoy mcp` | Run as an MCP stdio server, bridging to the daemon |
 
-Add `--json` to most commands for machine-readable output.
+Every subcommand follows a consistent argument convention (see [ADR 0043](docs/decisions/0043-cli-argument-convention.md)):
+
+- The **primary entity ID** the command operates on is positional: `hoy intent get <id>`, `hoy task complete <id>`, `hoy verification add <taskId> ...`.
+- **Secondary references** (parent, foreign keys) are `--flag`s: `hoy task create --intent <id> <title>`.
+- **Content** (titles, reasons, specs) is `--flag` unless it is short and required, in which case it can be the trailing positional.
+- All output-producing commands accept `--json` for machine-readable output.
+- All commands respect `--root` / `--socket` (or the `HOY_ROOT` / `HOY_SOCKET` environment variables).
 
 ## Project conventions
 

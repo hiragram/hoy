@@ -11,6 +11,9 @@ public enum HoyPaths {
     }
 
     public static func defaultSocketPath(root: String? = nil) -> String {
+        if let env = ProcessInfo.processInfo.environment["HOY_SOCKET"], !env.isEmpty {
+            return env
+        }
         let r = root ?? defaultRoot()
         return (r as NSString).appendingPathComponent("socket")
     }

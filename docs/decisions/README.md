@@ -63,3 +63,4 @@
 | [0040](0040-module-structure.md) | モジュール構成: core/protocol/daemon/cli/mcp | Accepted | — |
 | [0041](0041-sqlite-library-choice.md) | SQLiteライブラリは stephencelis/SQLite.swift | Accepted | — |
 | [0042](0042-test-framework-swift-testing.md) | テストフレームワークは Swift Testing | Accepted | — |
+| [0043](0043-cli-argument-convention.md) | CLI 引数体系の規範(positional/flag/--json) | Accepted | — |
