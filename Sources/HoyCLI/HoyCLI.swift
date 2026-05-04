@@ -17,6 +17,8 @@ public struct HoyApp: ParsableCommand {
             VerificationCommand.self,
             ClaimCommand.self,
             MCPCommand.self,
+            ReconcileCommand.self,
+            BackupCommand.self,
         ]
     )
 
@@ -392,6 +394,48 @@ struct ClaimCommand: ParsableCommand {
             )
             print("heartbeat: \(result.claim.targetIntentId) expires=\(result.claim.expiresAt)")
         }
+    }
+}
+
+// MARK: - reconcile / backup
+
+struct ReconcileCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "reconcile",
+        abstract: "SQLite と Git の整合性をチェック (ADR 0035)"
+    )
+
+    @OptionGroup var options: GlobalOptions
+
+    func run() throws {
+        // daemon を経由せず直接 Workspace を開く
+        let ws = try Workspace.open(at: options.rootPath)
+        let report = try Reconciliation(workspace: ws).check()
+        if report.isClean {
+            print("clean")
+            return
+        }
+        if !report.missingShas.isEmpty {
+            print("missing shas:")
+            for sha in report.missingShas { print("  - \(sha)") }
+        }
+        throw ExitCode(1)
+    }
+}
+
+struct BackupCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "backup",
+        abstract: "state.db と repo を指定先にスナップショット"
+    )
+
+    @OptionGroup var options: GlobalOptions
+    @Argument(help: "保存先ディレクトリ") var destination: String
+
+    func run() throws {
+        let ws = try Workspace.open(at: options.rootPath)
+        let path = try Backup(workspace: ws).snapshot(to: destination)
+        print("snapshot: \(path)")
     }
 }
 

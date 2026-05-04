@@ -199,10 +199,11 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ## Phase 7: 運用最低限
 
-- [ ] 監査ログの append 書き出し(ADR 0027、クエリ機能は MVP 外)
-- [ ] reconciliation コマンド(ADR 0035、Git と SQLite の乖離検知・修復)
-- [ ] バックアップ・リストア(SQLite ファイル + Git リポジトリ)
-- [ ] エラー・パニック時のリカバリ動作
+- [x] 監査ログの append 書き出し(Dispatcher が intent.create/update/close、task.create、claim.acquire 等で記録。task.complete/revert は TaskService 内で記録)
+- [x] reconciliation コマンド(`hoy reconcile`、ADR 0035。MVP は missing sha 検出のみ)
+- [x] バックアップ(`hoy backup <dest>`、SQLite ファイル + Git リポジトリのコピー)
+- [ ] リストア(restore コマンドはまだ。手動で root を差し替えれば動く)
+- [ ] エラー・パニック時のリカバリ動作(daemon 例外時の挙動を整備)
 
 ---
 

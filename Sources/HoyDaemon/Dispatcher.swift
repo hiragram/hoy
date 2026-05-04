@@ -20,6 +20,12 @@ public final class Dispatcher: @unchecked Sendable {
         self.verificationRunner = VerificationRunner(workspace: workspace)
     }
 
+    private func audit(_ op: String, by actor: PrincipalRef, payload: [String: String]) {
+        try? workspace.audit.append(AuditEntry.record(
+            actor: actor, op: op, payload: payload, now: Date()
+        ))
+    }
+
     /// 1 リクエスト分の JSON Data を処理し、レスポンスの JSON Data を返す。
     /// principal は接続単位の認証で確定する想定 (Auth は呼出側)。
     public func handle(requestData: Data, actor: PrincipalRef) -> Data {
@@ -89,6 +95,9 @@ public final class Dispatcher: @unchecked Sendable {
                     parentId: params.parentId
                 )
                 try self.workspace.intents.save(intent)
+                self.audit("intent.create", by: actor, payload: [
+                    "intentId": intent.id, "title": intent.title
+                ])
                 return Methods.IntentCreate.Result(intent: DTOMapper.toDTO(intent))
             }
 
@@ -111,6 +120,9 @@ public final class Dispatcher: @unchecked Sendable {
                 }
                 let updated = current.update(title: params.title, body: params.body)
                 try self.workspace.intents.save(updated)
+                self.audit("intent.update", by: actor, payload: [
+                    "intentId": updated.id, "version": String(updated.version)
+                ])
                 return Methods.IntentUpdate.Result(intent: DTOMapper.toDTO(updated))
             }
 
@@ -135,6 +147,9 @@ public final class Dispatcher: @unchecked Sendable {
                 }
                 let closed = try current.close(reason: params.reason)
                 try self.workspace.intents.save(closed)
+                self.audit("intent.close", by: actor, payload: [
+                    "intentId": closed.id, "reason": params.reason
+                ])
                 return Methods.IntentClose.Result(intent: DTOMapper.toDTO(closed))
             }
 
@@ -150,6 +165,9 @@ public final class Dispatcher: @unchecked Sendable {
                     dependsOn: params.dependsOn.map(DTOMapper.fromDTO)
                 )
                 try self.workspace.tasks.save(task)
+                self.audit("task.create", by: actor, payload: [
+                    "taskId": task.id, "intentId": task.intentId
+                ])
                 return Methods.TaskCreate.Result(task: DTOMapper.toDTO(task))
             }
 
@@ -273,6 +291,9 @@ public final class Dispatcher: @unchecked Sendable {
                     ttl: params.ttlSeconds
                 )
                 try self.workspace.claims.acquire(claim, now: now)
+                self.audit("claim.acquire", by: actor, payload: [
+                    "intentId": claim.targetIntentId
+                ])
                 return Methods.ClaimAcquire.Result(claim: DTOMapper.toDTO(claim))
             }
 
