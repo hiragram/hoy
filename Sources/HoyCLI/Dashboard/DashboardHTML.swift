@@ -21,6 +21,9 @@ enum DashboardHTML {
   header .meta { color: var(--muted); font-size: 12px; }
   header .stat { color: var(--fg); font-size: 12px; }
   header .stat .num { color: var(--accent); font-weight: 600; }
+  header .toggle { color: var(--muted); font-size: 12px; cursor: pointer;
+                   user-select: none; }
+  header .toggle input { vertical-align: middle; margin-right: 4px; }
   .container { max-width: 1100px; margin: 0 auto; padding: 16px 20px;
                display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
   .left { min-width: 0; }
@@ -133,6 +136,7 @@ enum DashboardHTML {
   <span class="stat"><span class="num" id="stat-tasks-open">0</span> open</span>
   <span class="stat"><span class="num" id="stat-claims">0</span> claims</span>
   <span class="stat"><span class="num" id="stat-worktrees">0</span> worktrees</span>
+  <label class="toggle" style="margin-left: 16px"><input type="checkbox" id="show-closed"> show closed</label>
   <span class="meta" id="ts" style="margin-left:auto">—</span>
   <span class="meta" id="status">connecting…</span>
   <span class="meta" id="event-status">events: —</span>
@@ -209,6 +213,25 @@ function indexState(intents) {
     for (const t of (i.tasks || [])) taskMap[t.id] = { task: t, intent: i };
     if (i.children) indexState(i.children);
   }
+}
+
+let showClosed = localStorage.getItem('hoy.showClosed') === 'true';
+function applyShowClosed() {
+  $('show-closed').checked = showClosed;
+}
+function filterIntents(intents) {
+  if (showClosed) return intents;
+  // closed Intent は除外。子も再帰的に。
+  // ただし closed でも子に active があれば表示 (見えなくなって混乱するため)
+  const out = [];
+  for (const i of intents) {
+    const filteredChildren = filterIntents(i.children || []);
+    const hasActiveDescendant = filteredChildren.length > 0;
+    if (i.status === 'closed' && !hasActiveDescendant) continue;
+    const copy = Object.assign({}, i, { children: filteredChildren });
+    out.push(copy);
+  }
+  return out;
 }
 
 function renderIntent(intent, claimsByIntent) {
@@ -386,15 +409,16 @@ async function refreshState() {
       (claimsByIntent[c.targetIntentId] = claimsByIntent[c.targetIntentId] || []).push(c);
     }
     renderClaims(claims);
-    const intents = state.intents || [];
-    // click 用のインデックス再構築
+    const allIntents = state.intents || [];
+    // click 用のインデックスは全 intent を入れる (modal で closed も参照可)
     Object.keys(intentMap).forEach(k => delete intentMap[k]);
     Object.keys(taskMap).forEach(k => delete taskMap[k]);
-    indexState(intents);
+    indexState(allIntents);
+    const intents = filterIntents(allIntents);
     const intentsEl = $('intents');
     if (!intents.length) {
       intentsEl.className = 'empty';
-      intentsEl.textContent = 'なし';
+      intentsEl.textContent = showClosed ? 'なし' : 'active な Intent はなし';
     } else {
       intentsEl.className = '';
       intentsEl.innerHTML = intents.map(i => renderIntent(i, claimsByIntent)).join('');
@@ -460,6 +484,12 @@ function connectEvents() {
   };
 }
 
+applyShowClosed();
+$('show-closed').addEventListener('change', e => {
+  showClosed = e.target.checked;
+  localStorage.setItem('hoy.showClosed', showClosed);
+  refreshState();
+});
 refreshState();
 connectEvents();
 // 念のため 10s ごとに状態同期 (claim TTL の表示更新等)
