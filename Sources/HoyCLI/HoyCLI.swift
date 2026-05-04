@@ -547,18 +547,64 @@ struct StatusCommand: ParsableCommand {
     @OptionGroup var options: GlobalOptions
     @Flag(name: .customLong("watch"), help: "events に追従して再描画") var watch: Bool = false
     @Flag(name: .customLong("include-closed"), help: "closed Intent も表示") var includeClosed: Bool = false
+    @Option(name: .customLong("retry-interval"), help: "切断時の再接続間隔 (秒)") var retryInterval: Double = 2
 
     func run() throws {
-        try render()
-        if !watch { return }
-
-        let client = options.makeClient()
-        try client.subscribe(methods: nil) { _ in
-            // 何かしらのイベントが来たら再描画
-            FileHandle.standardOutput.write(Data("\u{001B}[2J\u{001B}[H".utf8))
-            do { try self.render() } catch { /* ignore */ }
-            return true
+        if !watch {
+            try render()
+            return
         }
+        runWatchLoop()
+    }
+
+    private func runWatchLoop() {
+        // パイプ / 非 tty 出力でも読みやすいよう stdout を行バッファに切り替える。
+        setvbuf(stdout, nil, _IOLBF, 0)
+        // daemon の生死に関わらず回り続けるループ。
+        // 接続失敗 / EOF のたびに retryInterval 秒待って再試行。
+        while true {
+            // 1) 接続を試みて初期描画
+            clearScreen()
+            do {
+                try render()
+            } catch {
+                renderDisconnected(reason: "\(error)")
+                Thread.sleep(forTimeInterval: retryInterval)
+                continue
+            }
+
+            // 2) events を subscribe して再描画ループ
+            let client = options.makeClient()
+            do {
+                try client.subscribe(methods: nil) { _ in
+                    self.clearScreen()
+                    do { try self.render() } catch { /* ignore one-shot fetch failure */ }
+                    return true
+                }
+                // subscribe が return → daemon 側 EOF。再接続へ
+            } catch {
+                // socket が落ちたなど
+            }
+            renderDisconnected(reason: "daemon との接続が切れました")
+            Thread.sleep(forTimeInterval: retryInterval)
+        }
+    }
+
+    private func clearScreen() {
+        FileHandle.standardOutput.write(Data("\u{001B}[2J\u{001B}[H".utf8))
+    }
+
+    private func renderDisconnected(reason: String) {
+        clearScreen()
+        let ts = ISO8601DateFormatter().string(from: Date())
+        print("hoy status — \(ts)")
+        print("─────────────────────────────")
+        print()
+        print("⚠ daemon に接続できません")
+        print("  reason: \(reason)")
+        print("  socket: \(options.socketPath)")
+        print()
+        print("\(retryInterval)s ごとに再接続を試みます…")
     }
 
     private func render() throws {
