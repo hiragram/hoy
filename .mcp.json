@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hoy": {
+      "command": "swx",
+      "args": ["hiragram/hoy", "--", "mcp"],
+      "env": {
+        "HOY_ROOT": "${HOY_ROOT:-${HOME}/.hoy/hoy-dev}"
+      }
+    }
+  }
+}
