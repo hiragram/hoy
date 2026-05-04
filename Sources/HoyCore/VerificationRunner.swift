@@ -15,20 +15,23 @@ public final class VerificationRunner {
     }
 
     /// 指定 Task の pending な automated check をすべて順に実行する。
+    /// task の worktree が存在すればそこを cwd にする (worktree 内の未統合変更が
+    /// テストから見えるように)。なければ main repo を cwd にフォールバック。
     /// 並列実行は open-questions #7 で MVP 後検討。
     @discardableResult
     public func runAutomated(taskId: String) throws -> HoyTask {
         guard let task = try workspace.tasks.get(id: taskId) else {
             throw VerificationRunnerError.taskNotFound(taskId)
         }
+        let cwd = effectiveCwd(forTask: taskId)
         var updated = task.verifications
         for index in updated.indices {
             let check = updated[index]
             guard case .automated(let command) = check.kind, check.status == .pending else {
                 continue
             }
-            let result = try runShell(command, cwd: repoPath())
-            let evidence = "exit \(result.exitCode)\n--- stdout ---\n\(result.stdout)\n--- stderr ---\n\(result.stderr)"
+            let result = try runShell(command, cwd: cwd)
+            let evidence = "cwd \(cwd)\nexit \(result.exitCode)\n--- stdout ---\n\(result.stdout)\n--- stderr ---\n\(result.stderr)"
             updated[index] = result.exitCode == 0
                 ? try check.markPassed(evidence: evidence)
                 : try check.markFailed(evidence: evidence)
@@ -36,6 +39,13 @@ public final class VerificationRunner {
         let next = task.replacingVerifications(updated)
         try workspace.tasks.save(next)
         return next
+    }
+
+    /// task の worktree が存在すればそのパスを返す。なければ main repo。
+    private func effectiveCwd(forTask taskId: String) -> String {
+        let wt = workspace.worktrees.worktreePath(forTask: taskId)
+        if FileManager.default.fileExists(atPath: wt) { return wt }
+        return repoPath()
     }
 
     public func recordHumanResult(
