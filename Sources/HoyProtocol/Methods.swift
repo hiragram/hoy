@@ -41,7 +41,7 @@ public enum Methods {
         public static let name = "intent.list"
         public struct Params: Codable, Sendable, Equatable {
             public let parentId: String?
-            public let includeClosed: Bool
+            public let includeClosed: Bool?
             public init(parentId: String? = nil, includeClosed: Bool = false) {
                 self.parentId = parentId; self.includeClosed = includeClosed
             }
@@ -191,7 +191,7 @@ public enum Methods {
             public let kind: String
             public let category: String
             public let spec: String
-            public let required: Bool
+            public let required: Bool?
             public init(taskId: String, kind: String, category: String, spec: String, required: Bool = true) {
                 self.taskId = taskId; self.kind = kind; self.category = category
                 self.spec = spec; self.required = required

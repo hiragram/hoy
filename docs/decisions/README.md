@@ -66,3 +66,4 @@
 | [0043](0043-cli-argument-convention.md) | CLI 引数体系の規範(positional/flag/--json) | Accepted | — |
 | [0044](0044-mcp-http-transport-via-shared-gateway.md) | HTTP/Streamable MCP は共有ゲートウェイで提供 | Proposed | — |
 | [0045](0045-per-task-worktree.md) | Task ごとに git worktree を切り完了時 rebase で統合 | Proposed | — |
+| [0046](0046-subscribe-and-rpc-multiplex.md) | events.subscribe と通常 RPC は同一接続で多重化可 | Accepted | — |

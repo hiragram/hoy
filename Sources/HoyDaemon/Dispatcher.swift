@@ -205,7 +205,8 @@ public final class Dispatcher: @unchecked Sendable {
                 decoder: decoder, encoder: encoder
             ) { params in
                 let intents = try self.workspace.intents.list(
-                    parentId: params.parentId, includeClosed: params.includeClosed
+                    parentId: params.parentId,
+                    includeClosed: params.includeClosed ?? false
                 )
                 return Methods.IntentList.Result(intents: intents.map(DTOMapper.toDTO))
             }
@@ -279,15 +280,16 @@ public final class Dispatcher: @unchecked Sendable {
                 guard let task = try self.workspace.tasks.get(id: params.taskId) else {
                     throw makeRPCError(code: RPCErrorCode.notFound, "task not found")
                 }
+                let required = params.required ?? true
                 let check: VerificationCheck
                 switch params.kind {
                 case "automated":
                     check = VerificationCheck.automated(
-                        category: params.category, command: params.spec, required: params.required
+                        category: params.category, command: params.spec, required: required
                     )
                 case "human":
                     check = VerificationCheck.human(
-                        category: params.category, instruction: params.spec, required: params.required
+                        category: params.category, instruction: params.spec, required: required
                     )
                 default:
                     throw makeRPCError(
