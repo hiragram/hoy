@@ -114,6 +114,17 @@ public final class Dispatcher: @unchecked Sendable {
                 return Methods.IntentUpdate.Result(intent: DTOMapper.toDTO(updated))
             }
 
+        case Methods.IntentList.name:
+            return try handle(
+                Methods.IntentList.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                let intents = try self.workspace.intents.list(
+                    parentId: params.parentId, includeClosed: params.includeClosed
+                )
+                return Methods.IntentList.Result(intents: intents.map(DTOMapper.toDTO))
+            }
+
         case Methods.IntentClose.name:
             return try handle(
                 Methods.IntentClose.self, data: requestData, id: requestId,
@@ -149,6 +160,44 @@ public final class Dispatcher: @unchecked Sendable {
             ) { params in
                 let task = try self.workspace.tasks.get(id: params.id)
                 return Methods.TaskGet.Result(task: task.map(DTOMapper.toDTO))
+            }
+
+        case Methods.TaskList.name:
+            return try handle(
+                Methods.TaskList.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                let tasks = try self.workspace.tasks.list(intentId: params.intentId)
+                return Methods.TaskList.Result(tasks: tasks.map(DTOMapper.toDTO))
+            }
+
+        case Methods.VerificationAdd.name:
+            return try handle(
+                Methods.VerificationAdd.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                guard let task = try self.workspace.tasks.get(id: params.taskId) else {
+                    throw makeRPCError(code: RPCErrorCode.notFound, "task not found")
+                }
+                let check: VerificationCheck
+                switch params.kind {
+                case "automated":
+                    check = VerificationCheck.automated(
+                        category: params.category, command: params.spec, required: params.required
+                    )
+                case "human":
+                    check = VerificationCheck.human(
+                        category: params.category, instruction: params.spec, required: params.required
+                    )
+                default:
+                    throw makeRPCError(
+                        code: RPCErrorCode.invalidParams,
+                        "kind must be automated or human"
+                    )
+                }
+                let next = task.appendingVerification(check)
+                try self.workspace.tasks.save(next)
+                return Methods.VerificationAdd.Result(task: DTOMapper.toDTO(next))
             }
 
         case Methods.TaskComplete.name:

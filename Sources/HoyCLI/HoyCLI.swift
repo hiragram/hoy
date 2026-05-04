@@ -76,8 +76,27 @@ struct DaemonCommand: ParsableCommand {
 struct IntentCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "intent",
-        subcommands: [Create.self, Get.self, Update.self, Close.self]
+        subcommands: [Create.self, Get.self, List.self, Update.self, Close.self]
     )
+
+    struct List: ParsableCommand {
+        @OptionGroup var options: GlobalOptions
+        @Option(name: .customLong("parent")) var parentId: String?
+        @Flag(name: .customLong("include-closed")) var includeClosed: Bool = false
+
+        func run() throws {
+            let client = RPCClient(socketPath: options.socketPath)
+            let result = try client.call(
+                Methods.IntentList.self,
+                params: Methods.IntentList.Params(
+                    parentId: parentId, includeClosed: includeClosed
+                )
+            )
+            for intent in result.intents {
+                print("\(intent.id) v\(intent.version) [\(intent.status)] \(intent.title)")
+            }
+        }
+    }
 
     struct Create: ParsableCommand {
         @OptionGroup var options: GlobalOptions
@@ -153,8 +172,24 @@ struct IntentCommand: ParsableCommand {
 struct TaskCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "task",
-        subcommands: [Create.self, Get.self, Complete.self, Revert.self]
+        subcommands: [Create.self, Get.self, List.self, Complete.self, Revert.self]
     )
+
+    struct List: ParsableCommand {
+        @OptionGroup var options: GlobalOptions
+        @Option(name: .customLong("intent")) var intentId: String?
+
+        func run() throws {
+            let client = RPCClient(socketPath: options.socketPath)
+            let result = try client.call(
+                Methods.TaskList.self,
+                params: Methods.TaskList.Params(intentId: intentId)
+            )
+            for task in result.tasks {
+                print("\(task.id) [\(task.status)] \(task.title)  (intent=\(task.intentId))")
+            }
+        }
+    }
 
     struct Create: ParsableCommand {
         @OptionGroup var options: GlobalOptions
@@ -224,8 +259,29 @@ struct TaskCommand: ParsableCommand {
 struct VerificationCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "verification",
-        subcommands: [Run.self, Report.self, Waive.self]
+        subcommands: [Add.self, Run.self, Report.self, Waive.self]
     )
+
+    struct Add: ParsableCommand {
+        @OptionGroup var options: GlobalOptions
+        @Option(name: .customLong("task")) var taskId: String
+        @Option(help: "automated or human") var kind: String
+        @Option var category: String
+        @Option(help: "automated は実行コマンド、human は指示文") var spec: String
+        @Flag(name: .customLong("optional"), inversion: .prefixedNo, exclusivity: .exclusive) var optional: Bool = false
+
+        func run() throws {
+            let client = RPCClient(socketPath: options.socketPath)
+            let result = try client.call(
+                Methods.VerificationAdd.self,
+                params: Methods.VerificationAdd.Params(
+                    taskId: taskId, kind: kind, category: category,
+                    spec: spec, required: !optional
+                )
+            )
+            printTask(result.task)
+        }
+    }
 
     struct Run: ParsableCommand {
         @OptionGroup var options: GlobalOptions

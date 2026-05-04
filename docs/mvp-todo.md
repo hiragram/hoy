@@ -184,7 +184,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `hoy task create / get / complete / revert`(list は次)
 - [x] `hoy verification run / report / waive`(add は次)
 - [x] `hoy claim acquire / release / heartbeat`
-- [ ] `intent list` / `task list` / `verification add` を Dispatcher と同時に追加
+- [x] `intent list` / `task list` / `verification add` を Dispatcher と同時に追加
 - [ ] human readable / `--json` 出力切替
 - [x] RPCClient のエラー表示(rpcError / connectFailed 等を整形)
 

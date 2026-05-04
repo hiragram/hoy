@@ -112,7 +112,7 @@ public final class VerificationRunner {
 }
 
 extension HoyTask {
-    fileprivate func replacingVerifications(_ next: [VerificationCheck]) -> HoyTask {
+    public func replacingVerifications(_ next: [VerificationCheck]) -> HoyTask {
         return HoyTask(
             id: id,
             intentId: intentId,
@@ -123,5 +123,9 @@ extension HoyTask {
             verifications: next,
             completedSha: completedSha
         )
+    }
+
+    public func appendingVerification(_ check: VerificationCheck) -> HoyTask {
+        return replacingVerifications(verifications + [check])
     }
 }

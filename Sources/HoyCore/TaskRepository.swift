@@ -55,6 +55,25 @@ public final class TaskRepository {
         }
     }
 
+    public func list(intentId: String? = nil) throws -> [HoyTask] {
+        var sql = "SELECT id FROM tasks"
+        var params: [Binding?] = []
+        if let intentId {
+            sql += " WHERE intent_id = ?"
+            params.append(intentId)
+        }
+        sql += " ORDER BY id"
+        var ids: [String] = []
+        for row in try storage.db.prepare(sql, params) {
+            ids.append(row[0] as! String)
+        }
+        var out: [HoyTask] = []
+        for id in ids {
+            if let t = try get(id: id) { out.append(t) }
+        }
+        return out
+    }
+
     public func get(id: String) throws -> HoyTask? {
         let stmt = try storage.db.prepare(
             """

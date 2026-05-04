@@ -31,6 +31,32 @@ public final class IntentRepository {
         )
     }
 
+    /// 親 Intent ごとに最新 version の Intent を列挙。
+    public func list(parentId: String? = nil, includeClosed: Bool = false) throws -> [Intent] {
+        var sql = """
+        SELECT id, version, title, body, status, closed_reason, parent_id
+        FROM intents AS a
+        WHERE version = (SELECT MAX(version) FROM intents WHERE id = a.id)
+        """
+        var params: [Binding?] = []
+        if let parentId {
+            sql += " AND parent_id = ?"
+            params.append(parentId)
+        } else {
+            sql += " AND parent_id IS NULL"
+        }
+        if !includeClosed {
+            sql += " AND status = 'active'"
+        }
+        sql += " ORDER BY id"
+
+        var out: [Intent] = []
+        for row in try storage.db.prepare(sql, params) {
+            out.append(try decode(row: row))
+        }
+        return out
+    }
+
     public func latest(id: String) throws -> Intent? {
         let stmt = try storage.db.prepare(
             """
