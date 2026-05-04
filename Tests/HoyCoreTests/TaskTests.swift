@@ -51,4 +51,36 @@ struct TaskTests {
         )
         #expect(task.dependsOn == [dep])
     }
+
+    // ADR 0014: Task 完了
+    @Test func complete_transitionsOpenToCompleted() throws {
+        let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
+        let completed = try task.complete()
+        #expect(completed.status == .completed)
+        #expect(completed.id == task.id)
+    }
+
+    @Test func complete_alreadyCompletedThrows() throws {
+        let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
+        let completed = try task.complete()
+        #expect(throws: HoyTaskError.invalidTransition) {
+            try completed.complete()
+        }
+    }
+
+    // ADR 0034: completed -> reverted は一級遷移
+    @Test func revert_transitionsCompletedToReverted() throws {
+        let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
+        let completed = try task.complete()
+        let reverted = try completed.revert()
+        #expect(reverted.status == .reverted)
+        #expect(reverted.id == task.id)
+    }
+
+    @Test func revert_nonCompletedThrows() throws {
+        let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
+        #expect(throws: HoyTaskError.invalidTransition) {
+            try task.revert()
+        }
+    }
 }
