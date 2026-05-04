@@ -78,6 +78,9 @@ public final class TaskService {
             try? workspace.worktrees.remove(taskId: task.id)
         } else {
             sha = nil
+            // --no-commit でも worktree が作られていれば cleanup する
+            // (ensureWorktree を後で呼んだケース等で残ることがある)
+            try? workspace.worktrees.remove(taskId: task.id)
         }
         let completed = try task.complete(sha: sha, bypassVerifications: bypassVerifications)
         try workspace.tasks.save(completed)
