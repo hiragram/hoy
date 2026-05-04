@@ -185,7 +185,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `hoy verification run / report / waive`(add は次)
 - [x] `hoy claim acquire / release / heartbeat`
 - [x] `intent list` / `task list` / `verification add` を Dispatcher と同時に追加
-- [ ] human readable / `--json` 出力切替
+- [x] human readable / `--json` 出力切替(主要 subcommand に適用済)
 - [x] RPCClient のエラー表示(rpcError / connectFailed 等を整形)
 
 ### 6.2 MCP サーバ

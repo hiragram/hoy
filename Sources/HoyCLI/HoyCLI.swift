@@ -38,8 +38,24 @@ struct GlobalOptions: ParsableArguments {
     @Option(name: .customLong("socket"), help: "Unix domain socket のパス")
     var socket: String?
 
+    @Flag(name: .customLong("json"), help: "JSON で出力")
+    var json: Bool = false
+
     var rootPath: String { root ?? HoyPaths.defaultRoot() }
     var socketPath: String { socket ?? HoyPaths.defaultSocketPath(root: rootPath) }
+}
+
+func emit<T: Encodable>(_ value: T, json: Bool, human: () -> Void) {
+    if json {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let data = try? encoder.encode(value),
+           let s = String(data: data, encoding: .utf8) {
+            print(s)
+        }
+    } else {
+        human()
+    }
 }
 
 // MARK: - daemon
@@ -153,8 +169,10 @@ struct IntentCommand: ParsableCommand {
                     parentId: parentId, includeClosed: includeClosed
                 )
             )
-            for intent in result.intents {
-                print("\(intent.id) v\(intent.version) [\(intent.status)] \(intent.title)")
+            emit(result.intents, json: options.json) {
+                for intent in result.intents {
+                    print("\(intent.id) v\(intent.version) [\(intent.status)] \(intent.title)")
+                }
             }
         }
     }
@@ -173,7 +191,9 @@ struct IntentCommand: ParsableCommand {
                     title: title, body: body, parentId: parentId
                 )
             )
-            print("intent: \(result.intent.id) v\(result.intent.version) — \(result.intent.title)")
+            emit(result.intent, json: options.json) {
+                print("intent: \(result.intent.id) v\(result.intent.version) — \(result.intent.title)")
+            }
         }
     }
 
@@ -187,12 +207,15 @@ struct IntentCommand: ParsableCommand {
                 Methods.IntentGet.self,
                 params: Methods.IntentGet.Params(id: id)
             )
-            if let intent = result.intent {
-                printIntent(intent)
-            } else {
-                print("not found: \(id)")
+            guard let intent = result.intent else {
+                if options.json {
+                    print("null")
+                } else {
+                    print("not found: \(id)")
+                }
                 throw ExitCode(1)
             }
+            emit(intent, json: options.json) { printIntent(intent) }
         }
     }
 
@@ -246,8 +269,10 @@ struct TaskCommand: ParsableCommand {
                 Methods.TaskList.self,
                 params: Methods.TaskList.Params(intentId: intentId)
             )
-            for task in result.tasks {
-                print("\(task.id) [\(task.status)] \(task.title)  (intent=\(task.intentId))")
+            emit(result.tasks, json: options.json) {
+                for task in result.tasks {
+                    print("\(task.id) [\(task.status)] \(task.title)  (intent=\(task.intentId))")
+                }
             }
         }
     }
@@ -263,7 +288,9 @@ struct TaskCommand: ParsableCommand {
                 Methods.TaskCreate.self,
                 params: Methods.TaskCreate.Params(intentId: intentId, title: title)
             )
-            print("task: \(result.task.id) — \(result.task.title)")
+            emit(result.task, json: options.json) {
+                print("task: \(result.task.id) — \(result.task.title)")
+            }
         }
     }
 
@@ -296,7 +323,9 @@ struct TaskCommand: ParsableCommand {
                 Methods.TaskComplete.self,
                 params: Methods.TaskComplete.Params(id: id)
             )
-            print("completed: \(result.task.id) at \(result.sha)")
+            emit(result, json: options.json) {
+                print("completed: \(result.task.id) at \(result.sha)")
+            }
         }
     }
 
