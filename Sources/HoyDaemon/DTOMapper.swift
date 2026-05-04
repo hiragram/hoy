@@ -90,6 +90,18 @@ public enum DTOMapper {
         )
     }
 
+    // MARK: AuditEntry
+
+    public static func toDTO(_ entry: AuditEntry) -> AuditEntryDTO {
+        return AuditEntryDTO(
+            id: entry.id,
+            timestamp: entry.timestamp.timeIntervalSince1970,
+            actor: toDTO(entry.actor),
+            op: entry.op,
+            payload: entry.payload
+        )
+    }
+
     // MARK: Claim
 
     public static func toDTO(_ claim: Claim) -> ClaimDTO {

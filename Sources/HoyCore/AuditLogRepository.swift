@@ -29,6 +29,37 @@ public final class AuditLogRepository {
         )
     }
 
+    /// 最新 N 件を新しい順で返す (timestamp DESC)。ダッシュボードの活動 feed 用。
+    public func tail(limit: Int) throws -> [AuditEntry] {
+        let stmt = try storage.db.prepare(
+            """
+            SELECT id, timestamp, actor_id, actor_kind, op, payload FROM audit_log
+            ORDER BY timestamp DESC LIMIT ?
+            """,
+            limit
+        )
+        var out: [AuditEntry] = []
+        for row in stmt {
+            let id = row[0] as! String
+            let ts = row[1] as! Double
+            let actorId = row[2] as! String
+            let actorKindStr = row[3] as! String
+            let op = row[4] as! String
+            let payloadStr = row[5] as! String
+            guard let kind = PrincipalRef.Kind(rawValue: actorKindStr) else {
+                throw AuditLogRepositoryError.invalidActorKind(actorKindStr)
+            }
+            out.append(AuditEntry(
+                id: id,
+                timestamp: Date(timeIntervalSince1970: ts),
+                actor: PrincipalRef(id: actorId, kind: kind),
+                op: op,
+                payload: try Self.decodePayload(payloadStr)
+            ))
+        }
+        return out
+    }
+
     /// MVP 段階の最小限の読み取り。クエリ機構は ADR 0031 で MVP 外。
     public func all() throws -> [AuditEntry] {
         let stmt = try storage.db.prepare(

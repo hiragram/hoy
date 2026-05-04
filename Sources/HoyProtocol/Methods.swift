@@ -286,6 +286,18 @@ public enum Methods {
         }
     }
 
+    public enum AuditTail: RPCMethod {
+        public static let name = "audit.tail"
+        public struct Params: Codable, Sendable, Equatable {
+            public let limit: Int?
+            public init(limit: Int? = nil) { self.limit = limit }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let entries: [AuditEntryDTO]
+            public init(entries: [AuditEntryDTO]) { self.entries = entries }
+        }
+    }
+
     public enum SessionWhoami: RPCMethod {
         public static let name = "session.whoami"
         public struct Params: Codable, Sendable, Equatable {

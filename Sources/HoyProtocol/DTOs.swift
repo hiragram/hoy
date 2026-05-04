@@ -83,6 +83,22 @@ public struct TaskDTO: Codable, Sendable, Equatable {
     }
 }
 
+public struct AuditEntryDTO: Codable, Sendable, Equatable {
+    public let id: String
+    public let timestamp: Double
+    public let actor: PrincipalRefDTO
+    public let op: String
+    public let payload: [String: String]
+
+    public init(
+        id: String, timestamp: Double, actor: PrincipalRefDTO,
+        op: String, payload: [String: String]
+    ) {
+        self.id = id; self.timestamp = timestamp; self.actor = actor
+        self.op = op; self.payload = payload
+    }
+}
+
 public struct ClaimDTO: Codable, Sendable, Equatable {
     public let principal: PrincipalRefDTO
     public let targetIntentId: String

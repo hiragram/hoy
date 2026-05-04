@@ -75,6 +75,10 @@ public final class DashboardServer: @unchecked Sendable {
             nodes.append(try buildNode(intent: intent, rpc: rpc))
         }
 
+        let audit = (try? rpc.call(
+            Methods.AuditTail.self, params: Methods.AuditTail.Params(limit: 30)
+        ).entries) ?? []
+
         let payload: [String: Any] = [
             "root": rootPath,
             "ts": Date().timeIntervalSince1970,
@@ -86,7 +90,16 @@ public final class DashboardServer: @unchecked Sendable {
                     "expiresAt": c.expiresAt
                 ]
             },
-            "intents": nodes
+            "intents": nodes,
+            "audit": audit.map { e -> [String: Any] in
+                return [
+                    "id": e.id,
+                    "timestamp": e.timestamp,
+                    "actor": ["id": e.actor.id, "kind": e.actor.kind],
+                    "op": e.op,
+                    "payload": e.payload
+                ]
+            }
         ]
         return try JSONSerialization.data(withJSONObject: payload)
     }
@@ -106,8 +119,22 @@ public final class DashboardServer: @unchecked Sendable {
             "version": intent.version,
             "title": intent.title,
             "status": intent.status,
-            "tasks": tasks.map { t in
-                return ["id": t.id, "title": t.title, "status": t.status]
+            "tasks": tasks.map { t -> [String: Any] in
+                let verifs = t.verifications.map { v -> [String: Any] in
+                    return [
+                        "id": v.id,
+                        "kind": v.kind,
+                        "category": v.category,
+                        "status": v.status,
+                        "required": v.required
+                    ]
+                }
+                return [
+                    "id": t.id,
+                    "title": t.title,
+                    "status": t.status,
+                    "verifications": verifs
+                ]
             }
         ]
         if !children.isEmpty {

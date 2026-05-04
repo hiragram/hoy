@@ -416,6 +416,15 @@ public final class Dispatcher: @unchecked Sendable {
                 return Methods.VerificationWaive.Result(task: DTOMapper.toDTO(task))
             }
 
+        case Methods.AuditTail.name:
+            return try handle(
+                Methods.AuditTail.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                let entries = try self.workspace.audit.tail(limit: params.limit ?? 50)
+                return Methods.AuditTail.Result(entries: entries.map(DTOMapper.toDTO))
+            }
+
         case Methods.SessionCreate.name:
             return try handle(
                 Methods.SessionCreate.self, data: requestData, id: requestId,

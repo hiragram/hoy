@@ -58,20 +58,33 @@ enum DashboardHTML {
     color: var(--muted); background: rgba(138, 143, 157, 0.1); }
   .tasks .item { padding: 2px 0; }
   .tasks .item .tid { color: var(--muted); font-size: 11px; }
-  .events { background: var(--card); border-radius: 4px; padding: 8px;
-            max-height: 70vh; overflow-y: auto; }
-  .event { padding: 6px 4px; border-bottom: 1px solid var(--line);
+  .events, .audit { background: var(--card); border-radius: 4px; padding: 8px;
+            max-height: 35vh; overflow-y: auto; }
+  .event, .audit-entry { padding: 6px 4px; border-bottom: 1px solid var(--line);
            font-size: 12px; }
-  .event:last-child { border-bottom: none; }
-  .event .when { color: var(--muted); margin-right: 6px; }
-  .event .name { font-weight: 600; margin-right: 6px; }
-  .event .name.task-completed { color: var(--good); }
-  .event .name.task-reverted { color: var(--warn); }
+  .event:last-child, .audit-entry:last-child { border-bottom: none; }
+  .event .when, .audit-entry .when { color: var(--muted); margin-right: 6px; }
+  .event .name, .audit-entry .op { font-weight: 600; margin-right: 6px; }
+  .event .name.task-completed, .audit-entry .op.task-complete { color: var(--good); }
+  .event .name.task-reverted, .audit-entry .op.task-revert { color: var(--warn); }
   .event .name.conflict-detected { color: var(--bad); }
   .event .name.claim-expired { color: var(--muted); }
   .event .name.verification-invalidated { color: var(--warn); }
-  .event .body { color: var(--fg); white-space: pre-wrap; word-break: break-all;
-                 font-size: 11px; opacity: 0.7; }
+  .audit-entry .op.intent-create, .audit-entry .op.intent-update { color: var(--accent); }
+  .audit-entry .op.intent-close { color: var(--muted); }
+  .audit-entry .op.task-create { color: var(--accent); }
+  .audit-entry .op.task-close { color: var(--muted); }
+  .audit-entry .op.session-create, .audit-entry .op.session-delete { color: var(--muted); }
+  .audit-entry .actor { color: var(--accent); margin-right: 4px; font-size: 11px; }
+  .event .body, .audit-entry .body { color: var(--fg); white-space: pre-wrap;
+                 word-break: break-all; font-size: 11px; opacity: 0.7; }
+  .verif-summary { display: inline-block; margin-left: 6px; }
+  .verif-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+               margin-right: 2px; vertical-align: middle; }
+  .verif-dot.passed { background: var(--good); }
+  .verif-dot.failed { background: var(--bad); }
+  .verif-dot.waived { background: var(--muted); }
+  .verif-dot.pending, .verif-dot.running { background: var(--warn); }
   footer { padding: 12px 20px; border-top: 1px solid var(--line);
            color: var(--muted); font-size: 12px; }
   .bad { color: var(--bad); }
@@ -104,6 +117,10 @@ enum DashboardHTML {
     <section>
       <h2>events <span style="color:var(--muted);font-weight:normal">(live)</span></h2>
       <div id="events" class="events"><div class="empty">no events yet</div></div>
+    </section>
+    <section>
+      <h2>recent activity <span style="color:var(--muted);font-weight:normal">(audit)</span></h2>
+      <div id="audit" class="audit"><div class="empty">—</div></div>
     </section>
   </div>
 </div>
@@ -167,10 +184,32 @@ function renderTasks(tasks) {
   const badges = order.filter(k => counts[k]).map(k =>
     `<span class="badge ${k}">${k}:${counts[k]}</span>`).join(' ');
   const active = tasks.filter(t => ['open','claimed','inProgress'].includes(t.status));
-  const items = active.slice(0, 5).map(t =>
-    `<div class="item">· <span class="tid">${shortId(t.id)}</span> ${esc(t.title)}</div>`).join('');
+  const items = active.slice(0, 5).map(t => {
+    const verifs = (t.verifications || []).map(v =>
+      `<span class="verif-dot ${v.status}" title="${esc(v.kind)}:${esc(v.category)} ${esc(v.status)}"></span>`
+    ).join('');
+    const verifBlock = verifs ? `<span class="verif-summary">${verifs}</span>` : '';
+    return `<div class="item">· <span class="tid">${shortId(t.id)}</span> ${esc(t.title)}${verifBlock}</div>`;
+  }).join('');
   const more = active.length > 5 ? `<div class="item">… +${active.length - 5} more</div>` : '';
   return `<div class="tasks"><div class="counts">${badges}</div>${items}${more}</div>`;
+}
+
+function renderAudit(entries) {
+  const el = $('audit');
+  if (!entries || !entries.length) { el.innerHTML = '<div class="empty">—</div>'; return; }
+  el.innerHTML = entries.map(e => {
+    const cls = e.op.replace(/\./g, '-');
+    const when = new Date(e.timestamp * 1000).toTimeString().slice(0, 8);
+    const keys = Object.keys(e.payload || {});
+    const body = keys.map(k => `${k}=${esc(String(e.payload[k]).slice(0, 40))}`).join(' ');
+    return `<div class="audit-entry">
+      <span class="when">${when}</span>
+      <span class="actor">${esc(e.actor.id)}</span>
+      <span class="op ${cls}">${esc(e.op)}</span>
+      <div class="body">${body}</div>
+    </div>`;
+  }).join('');
 }
 
 async function refreshState() {
@@ -197,6 +236,7 @@ async function refreshState() {
       intentsEl.className = '';
       intentsEl.innerHTML = intents.map(i => renderIntent(i, claimsByIntent)).join('');
     }
+    renderAudit(state.audit || []);
   } catch (e) {
     $('status').textContent = '⚠ daemon に接続できません';
     $('status').classList.add('disconnected');
