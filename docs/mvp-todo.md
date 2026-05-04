@@ -33,8 +33,8 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `status` は `active` で生まれる(ADR 0019)
 - [x] `parentId: IntentID?` を持てる(ADR 0004、入れ子)
 - [x] `update(title:body:)` で新しい version を返す(ADR 0008、ID は安定)
-- [ ] `close(reason:)` で `closed` に遷移、closing reason 必須(ADR 0019)
-- [ ] `closed` から `active` への遷移は禁止(ADR 0023)
+- [x] `close(reason:)` で `closed` に遷移、closing reason 必須(ADR 0019)
+- [x] `closed` から `active` への遷移は禁止(ADR 0023)
 
 ### 1.2 Task
 

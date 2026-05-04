@@ -73,4 +73,27 @@ struct IntentTests {
         let updated = intent.update(title: "y")
         #expect(updated.parentId == "parent-1")
     }
+
+    // ADR 0019: close は reason 必須、status が closed になる
+    @Test func close_transitionsToClosedWithReason() throws {
+        let intent = Intent.create(title: "x")
+        let closed = try intent.close(reason: "done")
+        #expect(closed.status == .closed(reason: "done"))
+    }
+
+    @Test func close_preservesIdAndIncrementsVersion() throws {
+        let intent = Intent.create(title: "x")
+        let closed = try intent.close(reason: "obsolete")
+        #expect(closed.id == intent.id)
+        #expect(closed.version == intent.version + 1)
+    }
+
+    // ADR 0023: closed Intent は reopen 不可。再度 close も無意味なので拒否
+    @Test func close_alreadyClosedThrows() throws {
+        let intent = Intent.create(title: "x")
+        let closed = try intent.close(reason: "first")
+        #expect(throws: IntentError.alreadyClosed) {
+            try closed.close(reason: "second")
+        }
+    }
 }

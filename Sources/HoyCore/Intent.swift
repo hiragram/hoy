@@ -1,5 +1,9 @@
 import Foundation
 
+public enum IntentError: Error, Equatable {
+    case alreadyClosed
+}
+
 public struct Intent {
     public enum Status: Equatable {
         case active
@@ -35,6 +39,20 @@ public struct Intent {
             title: title ?? self.title,
             body: body ?? self.body,
             status: status,
+            parentId: parentId
+        )
+    }
+
+    public func close(reason: String) throws -> Intent {
+        if case .closed = status {
+            throw IntentError.alreadyClosed
+        }
+        return Intent(
+            id: id,
+            version: version + 1,
+            title: title,
+            body: body,
+            status: .closed(reason: reason),
             parentId: parentId
         )
     }
