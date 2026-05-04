@@ -79,6 +79,54 @@ public final class SQLiteStorage {
             FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         );
         CREATE INDEX idx_verifications_task ON verifications(task_id);
+        """,
+        // v4: claims, principals, sessions
+        """
+        CREATE TABLE claims (
+            target_intent_id TEXT PRIMARY KEY,
+            principal_id TEXT NOT NULL,
+            principal_kind TEXT NOT NULL,
+            acquired_at REAL NOT NULL,
+            expires_at REAL NOT NULL
+        );
+
+        CREATE TABLE principals (
+            id TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            display_name TEXT NOT NULL,
+            created_at REAL NOT NULL
+        );
+
+        CREATE TABLE sessions (
+            id TEXT PRIMARY KEY,
+            principal_id TEXT NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            created_at REAL NOT NULL,
+            last_seen_at REAL NOT NULL,
+            FOREIGN KEY (principal_id) REFERENCES principals(id)
+        );
+        CREATE INDEX idx_sessions_principal ON sessions(principal_id);
+        """,
+        // v5: audit_log with append-only triggers (ADR 0027)
+        """
+        CREATE TABLE audit_log (
+            id TEXT PRIMARY KEY,
+            timestamp REAL NOT NULL,
+            actor_id TEXT NOT NULL,
+            actor_kind TEXT NOT NULL,
+            op TEXT NOT NULL,
+            payload TEXT NOT NULL
+        );
+        CREATE INDEX idx_audit_log_ts ON audit_log(timestamp);
+
+        CREATE TRIGGER audit_log_no_update BEFORE UPDATE ON audit_log
+        BEGIN
+            SELECT RAISE(ABORT, 'audit_log is append-only');
+        END;
+        CREATE TRIGGER audit_log_no_delete BEFORE DELETE ON audit_log
+        BEGIN
+            SELECT RAISE(ABORT, 'audit_log is append-only');
+        END;
         """
     ]
 

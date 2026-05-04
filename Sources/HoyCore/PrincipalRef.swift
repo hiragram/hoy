@@ -1,5 +1,5 @@
-public struct PrincipalRef: Equatable, Hashable {
-    public enum Kind: String, Equatable, Hashable {
+public struct PrincipalRef: Equatable, Hashable, Sendable {
+    public enum Kind: String, Equatable, Hashable, Sendable {
         case human
         case agent
     }
