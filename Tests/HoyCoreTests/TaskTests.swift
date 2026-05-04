@@ -55,23 +55,23 @@ struct TaskTests {
     // ADR 0014: Task 完了
     @Test func complete_transitionsOpenToCompleted() throws {
         let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
-        let completed = try task.complete()
+        let completed = try task.complete(sha: "deadbeef")
         #expect(completed.status == .completed)
         #expect(completed.id == task.id)
     }
 
     @Test func complete_alreadyCompletedThrows() throws {
         let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
-        let completed = try task.complete()
+        let completed = try task.complete(sha: "deadbeef")
         #expect(throws: HoyTaskError.invalidTransition) {
-            try completed.complete()
+            try completed.complete(sha: "x")
         }
     }
 
     // ADR 0034: completed -> reverted は一級遷移
     @Test func revert_transitionsCompletedToReverted() throws {
         let task = HoyTask.create(intentId: "i", title: "x", createdBy: principal)
-        let completed = try task.complete()
+        let completed = try task.complete(sha: "deadbeef")
         let reverted = try completed.revert()
         #expect(reverted.status == .reverted)
         #expect(reverted.id == task.id)
@@ -94,7 +94,7 @@ struct TaskTests {
             verifications: [pending]
         )
         #expect(throws: HoyTaskError.verificationsNotSatisfied) {
-            try task.complete()
+            try task.complete(sha: "deadbeef")
         }
     }
 
@@ -107,7 +107,7 @@ struct TaskTests {
             createdBy: principal,
             verifications: [passed]
         )
-        let completed = try task.complete()
+        let completed = try task.complete(sha: "deadbeef")
         #expect(completed.status == .completed)
     }
 }

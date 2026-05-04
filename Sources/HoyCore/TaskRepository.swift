@@ -13,15 +13,16 @@ public final class TaskRepository {
             try self.storage.db.run(
                 """
                 INSERT OR REPLACE INTO tasks
-                (id, intent_id, title, created_by_id, created_by_kind, status)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (id, intent_id, title, created_by_id, created_by_kind, status, completed_sha)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 task.id,
                 task.intentId,
                 task.title,
                 task.createdBy.id,
                 task.createdBy.kind.rawValue,
-                task.status.rawValue
+                task.status.rawValue,
+                task.completedSha
             )
 
             try self.storage.db.run("DELETE FROM task_dependencies WHERE task_id = ?", task.id)
@@ -57,7 +58,7 @@ public final class TaskRepository {
     public func get(id: String) throws -> HoyTask? {
         let stmt = try storage.db.prepare(
             """
-            SELECT id, intent_id, title, created_by_id, created_by_kind, status
+            SELECT id, intent_id, title, created_by_id, created_by_kind, status, completed_sha
             FROM tasks
             WHERE id = ?
             """,
@@ -70,6 +71,7 @@ public final class TaskRepository {
             let createdById = row[3] as! String
             let createdByKindStr = row[4] as! String
             let statusStr = row[5] as! String
+            let completedSha = row[6] as? String
 
             guard let kind = PrincipalRef.Kind(rawValue: createdByKindStr) else {
                 throw TaskRepositoryError.invalidPrincipalKind(createdByKindStr)
@@ -88,7 +90,8 @@ public final class TaskRepository {
                 createdBy: PrincipalRef(id: createdById, kind: kind),
                 status: status,
                 dependsOn: deps,
-                verifications: verifs
+                verifications: verifs,
+                completedSha: completedSha
             )
         }
         return nil

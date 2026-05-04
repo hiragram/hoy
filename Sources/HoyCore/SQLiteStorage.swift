@@ -127,6 +127,10 @@ public final class SQLiteStorage {
         BEGIN
             SELECT RAISE(ABORT, 'audit_log is append-only');
         END;
+        """,
+        // v6: tasks に completed_sha 列を追加
+        """
+        ALTER TABLE tasks ADD COLUMN completed_sha TEXT;
         """
     ]
 

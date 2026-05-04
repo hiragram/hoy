@@ -23,6 +23,7 @@ public struct HoyTask: Equatable {
     public let status: Status
     public let dependsOn: [IntentRef]
     public let verifications: [VerificationCheck]
+    public let completedSha: String?
 
     public static func create(
         intentId: String,
@@ -38,24 +39,25 @@ public struct HoyTask: Equatable {
             createdBy: createdBy,
             status: .open,
             dependsOn: dependsOn,
-            verifications: verifications
+            verifications: verifications,
+            completedSha: nil
         )
     }
 
-    public func complete() throws -> HoyTask {
+    public func complete(sha: String) throws -> HoyTask {
         guard status != .completed else { throw HoyTaskError.invalidTransition }
         guard VerificationGate.allRequiredSatisfied(in: verifications) else {
             throw HoyTaskError.verificationsNotSatisfied
         }
-        return with(status: .completed)
+        return with(status: .completed, completedSha: sha)
     }
 
     public func revert() throws -> HoyTask {
         guard status == .completed else { throw HoyTaskError.invalidTransition }
-        return with(status: .reverted)
+        return with(status: .reverted, completedSha: completedSha)
     }
 
-    private func with(status: Status) -> HoyTask {
+    private func with(status: Status, completedSha: String?) -> HoyTask {
         return HoyTask(
             id: id,
             intentId: intentId,
@@ -63,7 +65,8 @@ public struct HoyTask: Equatable {
             createdBy: createdBy,
             status: status,
             dependsOn: dependsOn,
-            verifications: verifications
+            verifications: verifications,
+            completedSha: completedSha
         )
     }
 }

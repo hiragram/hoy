@@ -98,8 +98,8 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 ### 2.3 統合 Repository
 
 - [x] Workspace 集約(Storage / Git / 各 Repository)
-- [ ] Task 完了時の Git commit 連携(Phase 3.2 IntegrationService)
-- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合、Phase 3.2)
+- [x] Task 完了時の Git commit 連携(TaskService.complete)
+- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合、reconciliation で対応予定)
 
 ---
 
@@ -107,15 +107,16 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 3.1 Claim 管理
 
-- [ ] claim 取得 API(競合時の挙動)
-- [ ] ハートビート受信と更新(ADR 0011)
-- [ ] 期限切れ claim の強制 release(タイマー / 起動時掃除)
+- [x] claim 取得 API(ClaimRepository.acquire、競合時 alreadyClaimed)
+- [x] ハートビート受信と更新(ClaimRepository.heartbeat、ADR 0011)
+- [x] 期限切れ claim の強制 release(ClaimRepository.purgeExpired、daemon タイマー連携は Phase 5.3)
 
 ### 3.2 統合(Integration)
 
-- [ ] Task 完了時に main へ即時統合(ADR 0014)
-- [ ] コンフリクト時の自動 rebase(ADR 0017)
-- [ ] rebase 失敗時の差し戻し(エージェントへのイベント通知)
+- [x] Task 完了時に main へ即時統合(TaskService.complete、ADR 0014)
+- [x] revert 操作(TaskService.revert、ADR 0034)
+- [ ] コンフリクト時の自動 rebase(ADR 0017、並列 claim が動き出してから実装)
+- [ ] rebase 失敗時の差し戻し(エージェントへのイベント通知、Phase 5.2 dispatch と連動)
 - [ ] 統合後の必須検証経路再走(ADR 0017)
 
 ### 3.3 検証経路実行

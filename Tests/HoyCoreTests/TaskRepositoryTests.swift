@@ -70,7 +70,8 @@ struct TaskRepositoryTests {
             createdBy: v1.createdBy,
             status: v1.status,
             dependsOn: [IntentRef(id: "new", version: 2)],
-            verifications: []
+            verifications: [],
+            completedSha: nil
         )
         try repo.save(v2)
         let loaded = try repo.get(id: v1.id)
