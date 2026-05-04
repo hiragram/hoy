@@ -319,15 +319,28 @@ function renderAudit(entries) {
   el.innerHTML = entries.map(e => {
     const cls = e.op.replace(/\./g, '-');
     const when = new Date(e.timestamp * 1000).toTimeString().slice(0, 8);
+    const target = entryTarget(e.payload || {});
+    const click = target ? `class="audit-entry clickable" onclick="${target.click}"` : `class="audit-entry"`;
     const keys = Object.keys(e.payload || {});
     const body = keys.map(k => `${k}=${esc(String(e.payload[k]).slice(0, 40))}`).join(' ');
-    return `<div class="audit-entry">
+    return `<div ${click}>
       <span class="when">${when}</span>
       <span class="actor">${esc(e.actor.id)}</span>
       <span class="op ${cls}">${esc(e.op)}</span>
       <div class="body">${body}</div>
     </div>`;
   }).join('');
+}
+
+// payload に taskId / intentId があれば対応する modal opener を返す
+function entryTarget(payload) {
+  if (payload.taskId && taskMap[payload.taskId]) {
+    return { click: `event.stopPropagation();showTask('${payload.taskId}')` };
+  }
+  if (payload.intentId && intentMap[payload.intentId]) {
+    return { click: `event.stopPropagation();showIntent('${payload.intentId}')` };
+  }
+  return null;
 }
 
 function showIntent(id) {
@@ -452,7 +465,9 @@ function renderEvents() {
         return `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`;
       }).join(' ');
     }
-    return `<div class="event">
+    const target = entryTarget(e.params || {});
+    const click = target ? `class="event clickable" onclick="${target.click}"` : `class="event"`;
+    return `<div ${click}>
       <span class="when">${e.when}</span>
       <span class="name ${cls}">${esc(e.method)}</span>
       <div class="body">${esc(body)}</div>
