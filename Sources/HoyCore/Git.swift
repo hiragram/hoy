@@ -108,4 +108,14 @@ public struct Git {
         let result = try runChecked(["rev-parse", "HEAD"])
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// 指定ブランチへの rebase。コンフリクトが起きた場合は非ゼロ exit が返る。
+    /// 呼び出し側が GitError をハンドルし、必要なら abort して上位へエスカレート。
+    public func rebase(onto branch: String) throws -> GitResult {
+        return try run(["rebase", branch])
+    }
+
+    public func rebaseAbort() throws {
+        try runChecked(["rebase", "--abort"])
+    }
 }

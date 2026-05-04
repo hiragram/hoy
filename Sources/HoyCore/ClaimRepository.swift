@@ -43,6 +43,16 @@ public final class ClaimRepository {
         )
     }
 
+    /// 期限切れの claim をまとめて削除する (ADR 0011)。daemon が定期呼出する想定。
+    @discardableResult
+    public func purgeExpired(now: Date) throws -> Int {
+        try storage.db.run(
+            "DELETE FROM claims WHERE expires_at < ?",
+            now.timeIntervalSince1970
+        )
+        return storage.db.changes
+    }
+
     public func get(targetIntentId: String) throws -> Claim? {
         let stmt = try storage.db.prepare(
             """

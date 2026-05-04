@@ -80,7 +80,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 2.1 SQLite
 
-- [ ] `state.db` の配置場所を決定(`~/.hoy/<workspace>/state.db` 想定)(daemon 起動時に確定)
+- [x] `state.db` の配置場所を決定(`<root>/state.db`、Workspace.open で確定)
 - [x] スキーマ定義(Intent / Task / Verification / Claim / Audit / Principal / Session)
 - [x] マイグレーション仕組み(version テーブル + 起動時適用)
 - [x] WAL モード有効化
@@ -93,12 +93,13 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `git` subprocess 実行ラッパー(ADR 0036、stdout/stderr/exit を構造化)
 - [x] Task 完了時のコミット作成(Git.commitAll、ADR 0014)
 - [x] revert 操作(Git.revert、ADR 0034)
-- [ ] rebase 操作(ADR 0017)
+- [x] rebase 操作(Git.rebase / rebaseAbort、ADR 0017)
 
 ### 2.3 統合 Repository
 
-- [ ] Intent / Task の CRUD を SQLite + Git の整合を取って実行
-- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合)
+- [x] Workspace 集約(Storage / Git / 各 Repository)
+- [ ] Task 完了時の Git commit 連携(Phase 3.2 IntegrationService)
+- [ ] トランザクション境界の設計(SQLite tx と git 操作のクラッシュ整合、Phase 3.2)
 
 ---
 
