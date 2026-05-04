@@ -40,4 +40,16 @@ struct IntentTests {
         let intent = Intent.create(title: "x")
         #expect(intent.status == .active)
     }
+
+    // ADR 0004: Intent は入れ子可
+    @Test func create_parentIdNilByDefault() {
+        let intent = Intent.create(title: "x")
+        #expect(intent.parentId == nil)
+    }
+
+    @Test func create_canHaveParent() {
+        let parent = Intent.create(title: "parent")
+        let child = Intent.create(title: "child", parentId: parent.id)
+        #expect(child.parentId == parent.id)
+    }
 }
