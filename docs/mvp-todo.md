@@ -121,10 +121,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 3.3 検証経路実行
 
-- [ ] automated check の実行(`spec` の command を subprocess で実行)
-- [ ] 結果(stdout/stderr/exit)を evidence として保存
-- [ ] human check は外部承認待ち、status 遷移 API で `passed/failed/waived` 化
-- [ ] 並列実行ポリシー(open-questions #7)
+- [x] automated check の実行(VerificationRunner.runAutomated、subprocess)
+- [x] 結果(stdout/stderr/exit)を evidence として保存
+- [x] human check の status 遷移 API(recordHumanResult / waive)
+- [ ] 並列実行ポリシー(open-questions #7、MVP は逐次)
 
 ---
 
