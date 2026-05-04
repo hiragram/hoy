@@ -30,7 +30,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] `Intent.create(title:)` が安定IDを採番(三角測量で UUID へ追い込む)
 - [x] `version` は 1 で生まれる(ADR 0008)
 - [x] `title` / `body` を保持
-- [ ] `status` は `active` で生まれる(ADR 0019)
+- [x] `status` は `active` で生まれる(ADR 0019)
 - [ ] `parentId: IntentID?` を持てる(ADR 0004、入れ子)
 - [ ] `update(title:body:)` で新しい version を返す(ADR 0008、ID は安定)
 - [ ] `close(reason:)` で `closed` に遷移、closing reason 必須(ADR 0019)

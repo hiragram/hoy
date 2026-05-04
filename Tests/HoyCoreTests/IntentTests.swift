@@ -34,4 +34,10 @@ struct IntentTests {
         let intent = Intent.create(title: "x", body: "rationale")
         #expect(intent.body == "rationale")
     }
+
+    // ADR 0019: 新規作成時 status は active
+    @Test func create_initialStatusIsActive() {
+        let intent = Intent.create(title: "x")
+        #expect(intent.status == .active)
+    }
 }
