@@ -38,10 +38,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 1.2 Task
 
-- [ ] `Task.create(intentId:title:)` で安定 ID
-- [ ] 必ず `intentId` を持つ(ADR 0001)
-- [ ] `createdBy: PrincipalRef` を保持(ADR 0006)
-- [ ] `status`: `open / claimed / in_progress / completed / reverted / closed`
+- [x] `Task.create(intentId:title:)` で安定 ID
+- [x] 必ず `intentId` を持つ(ADR 0001)
+- [x] `createdBy: PrincipalRef` を保持(ADR 0006)
+- [x] `status`: `open / claimed / in_progress / completed / reverted / closed`(型として定義済、遷移は順次実装)
 - [ ] `depends_on: [IntentRef@version]` を保持(ADR 0018)
 - [ ] `completed → reverted` 遷移を一級操作で持つ(ADR 0034)
 - [ ] Intent close 時に未完了 Task は cascade close(ADR 0024)
