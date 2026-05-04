@@ -64,3 +64,4 @@
 | [0041](0041-sqlite-library-choice.md) | SQLiteライブラリは stephencelis/SQLite.swift | Accepted | — |
 | [0042](0042-test-framework-swift-testing.md) | テストフレームワークは Swift Testing | Accepted | — |
 | [0043](0043-cli-argument-convention.md) | CLI 引数体系の規範(positional/flag/--json) | Accepted | — |
+| [0044](0044-mcp-http-transport-via-shared-gateway.md) | HTTP/Streamable MCP は共有ゲートウェイで提供 | Proposed | — |
