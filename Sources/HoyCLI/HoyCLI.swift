@@ -264,8 +264,27 @@ struct IntentCommand: ParsableCommand {
 struct TaskCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "task",
-        subcommands: [Create.self, Get.self, List.self, Complete.self, Close.self, Revert.self]
+        subcommands: [Create.self, Get.self, List.self, Complete.self, Close.self, Revert.self, Workspace.self]
     )
+
+    struct Workspace: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "workspace",
+            abstract: "Task の作業 worktree パスを返す (なければ作成)"
+        )
+
+        @OptionGroup var options: GlobalOptions
+        @Argument var id: String
+
+        func run() throws {
+            let client = options.makeClient()
+            let result = try client.call(
+                Methods.TaskWorkspace.self,
+                params: Methods.TaskWorkspace.Params(id: id)
+            )
+            print(result.path)
+        }
+    }
 
     struct Close: ParsableCommand {
         @OptionGroup var options: GlobalOptions

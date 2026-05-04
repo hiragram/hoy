@@ -115,9 +115,9 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 - [x] Task 完了時に main へ即時統合(TaskService.complete、ADR 0014)
 - [x] revert 操作(TaskService.revert、ADR 0034)
-- [ ] コンフリクト時の自動 rebase(ADR 0017、並列 claim が動き出してから実装)
-- [ ] rebase 失敗時の差し戻し(エージェントへのイベント通知、Phase 5.2 dispatch と連動)
-- [ ] 統合後の必須検証経路再走(ADR 0017)
+- [x] コンフリクト時の自動 rebase(ADR 0045 の per-task worktree + integrate で実装)
+- [x] rebase 失敗時の差し戻し(`conflict.detected` イベント発火、worktree は rebase --abort で保持)
+- [ ] 統合後の必須検証経路再走(ADR 0017。worktree の検証経路を再走させる仕組みは未実装)
 
 ### 3.3 検証経路実行
 
@@ -144,7 +144,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 - [x] イベントスキーマ(EventEnvelope、ADR 0016)
 - [x] `task.completed / verification.failed / claim.expired` を初期定義
-- [ ] `conflict.detected`(統合コンフリクトを実装する Phase 3.2 の続きで追加)
+- [x] `conflict.detected`(TaskService.complete の rebase conflict で発火、Dispatcher が EventBus に publish)
 - [x] サブスクリプション機構(UnixSocketServer を永続接続化、ConnectionContext で非同期 write、per-connection thread)
 
 ---

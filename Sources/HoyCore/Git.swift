@@ -96,12 +96,14 @@ public final class Git: @unchecked Sendable {
     // MARK: - 高レベル操作
 
     /// 作業ディレクトリに通常リポジトリを初期化する。既に初期化済みなら何もしない。
+    /// worktree 操作の前提として、main ブランチに最初の (空) コミットを作る。
     public func initIfNeeded(initialBranch: String = "main") throws {
         let gitDir = (workdir as NSString).appendingPathComponent(".git")
         if FileManager.default.fileExists(atPath: gitDir) { return }
         try runChecked(["init", "--initial-branch=\(initialBranch)"])
         try runChecked(["config", "user.email", "hoy@localhost"])
         try runChecked(["config", "user.name", "hoy"])
+        try runChecked(["commit", "--allow-empty", "-m", "init"])
     }
 
     /// 作業ツリーをすべて add してコミット。空コミットは許可。

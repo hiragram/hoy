@@ -308,18 +308,41 @@ public final class Dispatcher: @unchecked Sendable {
                 guard let task = try self.workspace.tasks.get(id: params.id) else {
                     throw makeRPCError(code: RPCErrorCode.notFound, "task not found")
                 }
-                let result = try self.taskService.complete(
-                    task: task, by: actor, commitChanges: params.commit ?? true
-                )
-                self.publishEvent(EventName.taskCompleted, payload: [
-                    "taskId": result.task.id,
-                    "intentId": result.task.intentId,
-                    "sha": result.sha
-                ])
-                return Methods.TaskComplete.Result(
-                    task: DTOMapper.toDTO(result.task),
-                    sha: result.sha
-                )
+                do {
+                    let result = try self.taskService.complete(
+                        task: task, by: actor, commitChanges: params.commit ?? true
+                    )
+                    self.publishEvent(EventName.taskCompleted, payload: [
+                        "taskId": result.task.id,
+                        "intentId": result.task.intentId,
+                        "sha": result.sha
+                    ])
+                    return Methods.TaskComplete.Result(
+                        task: DTOMapper.toDTO(result.task),
+                        sha: result.sha
+                    )
+                } catch let TaskServiceError.integrationConflict(stderr) {
+                    self.publishEvent(EventName.conflictDetected, payload: [
+                        "taskId": task.id, "intentId": task.intentId,
+                        "stderr": stderr
+                    ])
+                    throw makeRPCError(
+                        code: RPCErrorCode.conflict,
+                        "integration conflict: \(stderr)"
+                    )
+                }
+            }
+
+        case Methods.TaskWorkspace.name:
+            return try handle(
+                Methods.TaskWorkspace.self, data: requestData, id: requestId,
+                decoder: decoder, encoder: encoder
+            ) { params in
+                guard try self.workspace.tasks.get(id: params.id) != nil else {
+                    throw makeRPCError(code: RPCErrorCode.notFound, "task not found")
+                }
+                let path = try self.taskService.ensureWorktree(forTask: params.id)
+                return Methods.TaskWorkspace.Result(path: path)
             }
 
         case Methods.TaskClose.name:

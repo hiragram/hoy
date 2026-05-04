@@ -48,6 +48,9 @@ public enum HoyTools {
             tool("hoy_task_revert", "Task を revert", schema(properties: [
                 "id": ("string", true)
             ])),
+            tool("hoy_task_workspace", "Task の作業 worktree パスを返す", schema(properties: [
+                "id": ("string", true)
+            ])),
             tool("hoy_verification_add", "検証経路を追加", schema(properties: [
                 "taskId": ("string", true),
                 "kind": ("string", true),

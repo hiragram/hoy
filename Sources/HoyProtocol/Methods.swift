@@ -139,6 +139,18 @@ public enum Methods {
         }
     }
 
+    public enum TaskWorkspace: RPCMethod {
+        public static let name = "task.workspace"
+        public struct Params: Codable, Sendable, Equatable {
+            public let id: String
+            public init(id: String) { self.id = id }
+        }
+        public struct Result: Codable, Sendable, Equatable {
+            public let path: String
+            public init(path: String) { self.path = path }
+        }
+    }
+
     public enum TaskClose: RPCMethod {
         public static let name = "task.close"
         public struct Params: Codable, Sendable, Equatable {

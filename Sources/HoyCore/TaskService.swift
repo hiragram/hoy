@@ -3,10 +3,12 @@ import Foundation
 public enum TaskServiceError: Error, Equatable {
     case taskNotFound(String)
     case noCompletedShaToRevert
+    case integrationConflict(stderr: String)
 }
 
 // ADR 0014: Task 完了時の即時統合。
 // ADR 0034: revert は一級操作 (裏で git revert)。
+// ADR 0045: Task は専用 worktree で作業し、complete 時に main へ rebase + ff 統合する。
 public final class TaskService {
     private let workspace: Workspace
 
@@ -19,10 +21,21 @@ public final class TaskService {
         public let sha: String
     }
 
-    /// 作業ツリーの未コミット変更を `task: <title>` メッセージでコミットし、
-    /// Task の status を completed に遷移、audit ログを書く。
-    /// `commitChanges = false` を渡すと git commit を行わずメタデータのみ更新する
-    /// (sha は記録されない、内部メタタスク向け)。
+    /// task 用 worktree のパスを返す (作成済 / 未作成は問わず deterministic)。
+    public func workspacePath(forTask taskId: String) -> String {
+        return workspace.worktrees.worktreePath(forTask: taskId)
+    }
+
+    /// task 用 worktree を作成する (idempotent: 既存ならそのまま path を返す)。
+    @discardableResult
+    public func ensureWorktree(forTask taskId: String) throws -> String {
+        let path = workspace.worktrees.worktreePath(forTask: taskId)
+        if FileManager.default.fileExists(atPath: path) { return path }
+        return try workspace.worktrees.create(taskId: taskId)
+    }
+
+    /// task の worktree 内の変更を commit、main へ rebase + ff 統合する。
+    /// `commitChanges = false` ではメタデータのみ完了させる。
     public func complete(
         task: HoyTask,
         by actor: PrincipalRef,
@@ -31,10 +44,23 @@ public final class TaskService {
     ) throws -> CompletionResult {
         let sha: String?
         if commitChanges {
-            sha = try workspace.git.commitAll(
-                message: "task: \(task.title)",
-                allowEmpty: true
-            )
+            // worktree が無ければ作る (lazy)
+            let wtPath = try ensureWorktree(forTask: task.id)
+            let wtGit = Git(workdir: wtPath)
+            // worktree 内の変更を commit
+            _ = try wtGit.commitAll(message: "task: \(task.title)")
+            // main に rebase + ff 統合
+            do {
+                sha = try workspace.worktrees.integrate(taskId: task.id)
+            } catch let WorktreeManagerError.rebaseConflict(stderr) {
+                workspace.hooks.fire(event: "conflict.detected", payload: [
+                    "taskId": task.id, "intentId": task.intentId,
+                    "stderr": stderr
+                ])
+                throw TaskServiceError.integrationConflict(stderr: stderr)
+            }
+            // 統合済みなので worktree は不要
+            try? workspace.worktrees.remove(taskId: task.id)
         } else {
             sha = nil
         }
