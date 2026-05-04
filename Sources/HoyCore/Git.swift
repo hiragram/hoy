@@ -147,4 +147,39 @@ public final class Git: @unchecked Sendable {
     public func rebaseAbort() throws {
         try runChecked(["rebase", "--abort"])
     }
+
+    // MARK: - Worktree (ADR 0045)
+
+    /// 既存ブランチをベースに新しい worktree を `<path>` に作成し、新ブランチ `branch` を切る。
+    public func worktreeAdd(path: String, branch: String, base: String = "HEAD") throws {
+        try withLock {
+            try runCheckedUnlocked([
+                "worktree", "add",
+                "-b", branch,
+                path, base
+            ])
+        }
+    }
+
+    /// 指定 path の worktree を削除する。force でブランチ未マージでも消す。
+    public func worktreeRemove(path: String, force: Bool = false) throws {
+        try withLock {
+            var args = ["worktree", "remove", path]
+            if force { args.append("--force") }
+            try runCheckedUnlocked(args)
+        }
+    }
+
+    /// 指定ブランチを削除する。force で未マージでも消す。
+    public func branchDelete(_ branch: String, force: Bool = false) throws {
+        try withLock {
+            try runCheckedUnlocked(["branch", force ? "-D" : "-d", branch])
+        }
+    }
+
+    /// `<path>` の worktree の HEAD を `target` に fast-forward する (引数なしで現在の HEAD を返す簡略版)。
+    public func currentSha(at path: String) throws -> String {
+        let result = try runChecked(["-C", path, "rev-parse", "HEAD"])
+        return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
