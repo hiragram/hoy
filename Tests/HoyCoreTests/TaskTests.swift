@@ -34,4 +34,21 @@ struct TaskTests {
         let task = HoyTask.create(intentId: "intent-1", title: "x", createdBy: principal)
         #expect(task.status == .open)
     }
+
+    // ADR 0018: 依存は Intent@version で表現
+    @Test func create_dependsOnDefaultsToEmpty() {
+        let task = HoyTask.create(intentId: "intent-1", title: "x", createdBy: principal)
+        #expect(task.dependsOn == [])
+    }
+
+    @Test func create_retainsDependsOn() {
+        let dep = IntentRef(id: "intent-9", version: 3)
+        let task = HoyTask.create(
+            intentId: "intent-1",
+            title: "x",
+            createdBy: principal,
+            dependsOn: [dep]
+        )
+        #expect(task.dependsOn == [dep])
+    }
 }

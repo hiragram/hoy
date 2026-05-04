@@ -16,18 +16,21 @@ public struct HoyTask {
     public let title: String
     public let createdBy: PrincipalRef
     public let status: Status
+    public let dependsOn: [IntentRef]
 
     public static func create(
         intentId: String,
         title: String,
-        createdBy: PrincipalRef
+        createdBy: PrincipalRef,
+        dependsOn: [IntentRef] = []
     ) -> HoyTask {
         return HoyTask(
             id: UUID().uuidString,
             intentId: intentId,
             title: title,
             createdBy: createdBy,
-            status: .open
+            status: .open,
+            dependsOn: dependsOn
         )
     }
 }
