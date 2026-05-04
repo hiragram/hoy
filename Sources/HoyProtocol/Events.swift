@@ -7,6 +7,7 @@ public enum EventName {
     public static let taskCompleted = "task.completed"
     public static let taskReverted = "task.reverted"
     public static let verificationFailed = "verification.failed"
+    public static let verificationInvalidated = "verification.invalidated"
     public static let claimExpired = "claim.expired"
     public static let conflictDetected = "conflict.detected"
 }

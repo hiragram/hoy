@@ -321,6 +321,12 @@ public final class Dispatcher: @unchecked Sendable {
                         "intentId": result.task.intentId,
                         "sha": result.sha
                     ])
+                    for invalidatedId in result.invalidatedTaskIds {
+                        self.publishEvent(EventName.verificationInvalidated, payload: [
+                            "taskId": invalidatedId,
+                            "reason": "main moved by task.complete \(result.task.id)"
+                        ])
+                    }
                     return Methods.TaskComplete.Result(
                         task: DTOMapper.toDTO(result.task),
                         sha: result.sha

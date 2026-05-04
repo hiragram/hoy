@@ -117,7 +117,7 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 - [x] revert 操作(TaskService.revert、ADR 0034)
 - [x] コンフリクト時の自動 rebase(ADR 0045 の per-task worktree + integrate で実装)
 - [x] rebase 失敗時の差し戻し(`conflict.detected` イベント発火、worktree は rebase --abort で保持)
-- [ ] 統合後の必須検証経路再走(ADR 0017。worktree の検証経路を再走させる仕組みは未実装)
+- [x] 統合後の必須検証経路再走(TaskService.complete が main を進めると他 open task の automated check を pending に戻し、`verification.invalidated` イベントを発火)
 
 ### 3.3 検証経路実行
 

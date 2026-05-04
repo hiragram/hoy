@@ -70,6 +70,17 @@ public struct VerificationCheck: Equatable {
         return with(status: .waived(reason: reason, by: approver), evidence: evidence)
     }
 
+    /// 統合後の再走 (ADR 0017) などで、terminal 状態の automated check を
+    /// pending に戻す。human / waived は触らない。
+    public func resetToPending() -> VerificationCheck {
+        switch (kind, status) {
+        case (.automated, .passed), (.automated, .failed):
+            return with(status: .pending, evidence: nil)
+        default:
+            return self
+        }
+    }
+
     private func requireNotTerminal() throws {
         switch status {
         case .pending, .running:

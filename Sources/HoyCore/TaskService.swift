@@ -19,6 +19,7 @@ public final class TaskService {
     public struct CompletionResult: Equatable {
         public let task: HoyTask
         public let sha: String
+        public let invalidatedTaskIds: [String]
     }
 
     /// task 用 worktree のパスを返す (作成済 / 未作成は問わず deterministic)。
@@ -68,6 +69,23 @@ public final class TaskService {
         }
         let completed = try task.complete(sha: sha, bypassVerifications: bypassVerifications)
         try workspace.tasks.save(completed)
+
+        // ADR 0017: main が動いた (commitChanges=true で integrate 成功) 場合、
+        // 他の open / claimed / inProgress な task の automated check を
+        // pending に戻す。検証経路再走を要請する。
+        var invalidated: [String] = []
+        if commitChanges && sha != nil {
+            let openStatuses: Set<HoyTask.Status> = [.open, .claimed, .inProgress]
+            for other in try workspace.tasks.list() where other.id != task.id {
+                guard openStatuses.contains(other.status) else { continue }
+                let updated = other.verifications.map { $0.resetToPending() }
+                if updated != other.verifications {
+                    try workspace.tasks.save(other.replacingVerifications(updated))
+                    invalidated.append(other.id)
+                }
+            }
+        }
+
         var payload: [String: String] = [
             "taskId": task.id, "intentId": task.intentId
         ]
@@ -75,12 +93,9 @@ public final class TaskService {
         try workspace.audit.append(AuditEntry.record(
             actor: actor, op: "task.complete", payload: payload, now: now
         ))
-        // ADR 0035: SQLite と git のクラッシュ整合のためここで WAL を取り込む。
-        // git commit は既に終わっており、ここで checkpoint することで
-        // 「commit はあるが task.completed が永続化されていない」窓を縮める。
         try? workspace.storage.checkpoint()
         workspace.hooks.fire(event: "task.completed", payload: payload)
-        return CompletionResult(task: completed, sha: sha ?? "")
+        return CompletionResult(task: completed, sha: sha ?? "", invalidatedTaskIds: invalidated)
     }
 
     public struct CloseResult: Equatable {

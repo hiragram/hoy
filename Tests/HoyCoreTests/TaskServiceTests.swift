@@ -117,6 +117,39 @@ struct TaskServiceTests {
         #expect(audit.contains { $0.op == "task.revert" })
     }
 
+    // ADR 0017: main が動くと他 task の automated check が pending に戻る
+    @Test func complete_invalidatesOtherTasksAutomatedChecks() throws {
+        let ws = try makeWorkspace()
+        let svc = TaskService(workspace: ws)
+        let approver = PrincipalRef(id: "u", kind: .human)
+
+        // 別 task に automated (passed) と human (waived) の check を仕込む
+        let other = HoyTask.create(
+            intentId: "i-other", title: "other", createdBy: actor,
+            verifications: [
+                try VerificationCheck.automated(category: "unittest", command: "x")
+                    .markPassed(evidence: "ok"),
+                try VerificationCheck.human(category: "ux", instruction: "y")
+                    .waive(reason: "low risk", by: approver)
+            ]
+        )
+        try ws.tasks.save(other)
+
+        // main を動かす task
+        let mover = HoyTask.create(intentId: "i-mover", title: "mover", createdBy: actor)
+        try ws.tasks.save(mover)
+        try writeInWorktree(ws, taskId: mover.id, name: "out.txt", content: "x")
+        let result = try svc.complete(task: mover, by: actor)
+
+        #expect(result.invalidatedTaskIds.contains(other.id))
+        let reloaded = try ws.tasks.get(id: other.id)!
+        let auto = reloaded.verifications.first { if case .automated = $0.kind { return true } else { return false } }!
+        let human = reloaded.verifications.first { if case .human = $0.kind { return true } else { return false } }!
+        #expect(auto.status == .pending)
+        // human/waived は触らない
+        if case .waived = human.status {} else { Issue.record("human check should remain waived") }
+    }
+
     @Test func revert_taskNotFoundThrows() throws {
         let ws = try makeWorkspace()
         let svc = TaskService(workspace: ws)
