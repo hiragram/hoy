@@ -7,4 +7,10 @@ final class IntentTests: XCTestCase {
         let intent = Intent.create(title: "first intent")
         XCTAssertFalse(intent.id.isEmpty)
     }
+
+    func test_create_assignsUniqueIdPerCall() {
+        let a = Intent.create(title: "a")
+        let b = Intent.create(title: "b")
+        XCTAssertNotEqual(a.id, b.id)
+    }
 }
