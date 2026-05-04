@@ -1,15 +1,15 @@
-# 0015. nextgitはローカル常駐daemonとして動作する
+# 0015. hoyはローカル常駐daemonとして動作する
 
 - **Status**: Accepted
 - **Related**: open-questions #2, #5
 
 ## Context
 
-nextgit のランタイムをどう構築するか。リモート中央サーバ型(GitHub的)、ローカル常駐型(git的)、ハイブリッドなどの選択肢があった。
+hoy のランタイムをどう構築するか。リモート中央サーバ型(GitHub的)、ローカル常駐型(git的)、ハイブリッドなどの選択肢があった。
 
 ## Decision
 
-nextgit はローカルマシン上で動く **常駐 daemon プロセス**として実装する。daemon は以下を担う:
+hoy はローカルマシン上で動く **常駐 daemon プロセス**として実装する。daemon は以下を担う:
 
 - 状態管理(Intent / Task / 検証経路 / claim)
 - コンフリクト検出と統合処理

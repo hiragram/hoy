@@ -14,7 +14,7 @@
 
 ## Decision
 
-Intent に対する作業権は **1エージェントによる排他 claim** で管理する。nextgit は claim/release/lock の管理までを責務とし、claim したエージェントが配下の Task をどう処理するか(サブエージェント委譲など)は関知しない。
+Intent に対する作業権は **1エージェントによる排他 claim** で管理する。hoy は claim/release/lock の管理までを責務とし、claim したエージェントが配下の Task をどう処理するか(サブエージェント委譲など)は関知しない。
 
 ## Rationale
 

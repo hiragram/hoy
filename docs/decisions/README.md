@@ -35,7 +35,7 @@
 | [0012](0012-claim-semantics-write-exclusive.md) | claimは書き込み排他・読み取り自由 | Accepted | #2 |
 | [0013](0013-task-changeset-storage.md) | Task変更セットは内部的にGitを再利用 | Accepted | #2 |
 | [0014](0014-task-immediate-integration.md) | Task完了時に即時統合 | Accepted | #2 |
-| [0015](0015-local-daemon-architecture.md) | nextgitはローカル常駐daemon | Accepted | #2, #5 |
+| [0015](0015-local-daemon-architecture.md) | hoyはローカル常駐daemon | Accepted | #2, #5 |
 | [0016](0016-agent-dispatch-hook.md) | エージェント連携はhookスクリプト | Accepted | #2 |
 | [0017](0017-conflict-resolution.md) | 統合コンフリクトは自動リベース→失敗時に差し戻し | Accepted | #2 |
 | [0018](0018-task-cross-intent-dependency.md) | Task依存はIntent@versionで表現 | Accepted | #2 |
@@ -50,9 +50,11 @@
 | [0027](0027-unified-audit-log.md) | 監査ログは統一append-onlyストリーム | Accepted | #4 |
 | [0028](0028-no-builtin-secret-management.md) | 機密管理は内蔵せず外部secret manager前提 | Accepted | #4 |
 | [0029](0029-mvp-single-developer.md) | MVPは単一開発者スコープ、マルチは将来 | Accepted | #5 |
-| [0030](0030-fully-open-source.md) | nextgitはフルOSS | Accepted | #6 |
+| [0030](0030-fully-open-source.md) | hoyはフルOSS | Accepted | #6 |
 | [0031](0031-mvp-scope.md) | MVPはデータモデル完備、UI・運用ツールは後 | Accepted | #6 |
 | [0032](0032-mvp-no-external-integration.md) | MVPは外部ツール統合を持たない | Accepted | #6 |
-| [0033](0033-no-internal-llm-cost.md) | nextgit本体はLLM推論コストを内部負担しない | Accepted | #7 |
+| [0033](0033-no-internal-llm-cost.md) | hoy本体はLLM推論コストを内部負担しない | Accepted | #7 |
 | [0034](0034-task-revert.md) | revertは一級操作、Taskを reverted 状態に遷移 | Accepted | #8 |
 | [0035](0035-recovery-and-anomaly.md) | 復旧手段はMVP必須、暴走検知は外部hook | Accepted | #8 |
+| [0036](0036-mvp-language-swift.md) | MVP実装言語はSwift | Accepted | — |
+| [0037](0037-project-name-hoy.md) | プロジェクト名はhoy | Accepted | — |
