@@ -42,6 +42,43 @@ public final class SQLiteStorage {
         );
         CREATE INDEX idx_intents_id ON intents(id);
         CREATE INDEX idx_intents_parent ON intents(parent_id);
+        """,
+        // v3: tasks, task_dependencies, verifications
+        """
+        CREATE TABLE tasks (
+            id TEXT PRIMARY KEY,
+            intent_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            created_by_id TEXT NOT NULL,
+            created_by_kind TEXT NOT NULL,
+            status TEXT NOT NULL
+        );
+        CREATE INDEX idx_tasks_intent ON tasks(intent_id);
+
+        CREATE TABLE task_dependencies (
+            task_id TEXT NOT NULL,
+            intent_id TEXT NOT NULL,
+            intent_version INTEGER NOT NULL,
+            PRIMARY KEY (task_id, intent_id, intent_version),
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE verifications (
+            id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            category TEXT NOT NULL,
+            spec TEXT NOT NULL,
+            status TEXT NOT NULL,
+            waived_reason TEXT,
+            waived_by_id TEXT,
+            waived_by_kind TEXT,
+            evidence TEXT,
+            required INTEGER NOT NULL,
+            ordering INTEGER NOT NULL,
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_verifications_task ON verifications(task_id);
         """
     ]
 

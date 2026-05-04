@@ -6,7 +6,7 @@ public enum HoyTaskError: Error, Equatable {
 }
 
 // Swift 並行性の `Task` と衝突するので `HoyTask` で定義する。
-public struct HoyTask {
+public struct HoyTask: Equatable {
     public enum Status: String, Equatable {
         case open
         case claimed
