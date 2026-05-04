@@ -80,10 +80,10 @@ TDD で型の振る舞いを確定させてからストレージに乗せる。
 
 ### 2.1 SQLite
 
-- [ ] `state.db` の配置場所を決定(`~/.hoy/<workspace>/state.db` 想定)
+- [ ] `state.db` の配置場所を決定(`~/.hoy/<workspace>/state.db` 想定)(daemon 起動時に確定)
 - [ ] スキーマ定義(Intent / Task / Verification / Claim / Audit / Principal / Session)
-- [ ] マイグレーション仕組み(version テーブル + 起動時適用)
-- [ ] WAL モード有効化
+- [x] マイグレーション仕組み(version テーブル + 起動時適用)
+- [x] WAL モード有効化
 - [ ] Repository 抽象化(各エンティティ用、テストで in-memory 実装と差し替え可能に)
 - [ ] AuditLog は INSERT のみ、UPDATE/DELETE をトリガーで拒否(ADR 0027)
 
